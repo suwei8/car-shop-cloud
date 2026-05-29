@@ -15,10 +15,8 @@ public class MainActivity extends Activity {
     private WebView webView;
     private ProgressBar progressBar;
 
-    // API 服务器地址，打包前修改为实际地址
-    private static final String BASE_URL = "file:///android_asset/h5/index.html";
-    // 如果要加载远程 H5，改为：
-    // private static final String BASE_URL = "http://你的服务器IP:5174";
+    // H5 服务器地址
+    private static final String BASE_URL = "http://168.110.210.80:5174";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
