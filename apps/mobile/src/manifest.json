@@ -1,0 +1,44 @@
+{
+  "name": "车店云管家",
+  "appid": "__UNI__CARSHOP",
+  "description": "SaaS 多商户汽服门店管理系统",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "app-plus": {
+    "modules": {
+      "Camera": {},
+      "Gallery": {}
+    },
+    "distribute": {
+      "android": {
+        "permissions": [
+          "<uses-permission android:name=\"android.permission.CAMERA\"/>",
+          "<uses-permission android:name=\"android.permission.INTERNET\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
+          "<uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\"/>",
+          "<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\"/>"
+        ],
+        "minSdkVersion": 21,
+        "targetSdkVersion": 34,
+        "abiFilters": ["armeabi-v7a", "arm64-v8a"]
+      },
+      "ios": {},
+      "sdkConfigs": {}
+    },
+    "splashscreen": {
+      "alwaysShowBeforeRender": false
+    }
+  },
+  "h5": {
+    "devServer": {
+      "port": 5174,
+      "proxy": {
+        "/api": {
+          "target": "http://localhost:3000",
+          "changeOrigin": true
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "car-shop-cloud",
+  "version": "0.1.0",
+  "private": true,
+  "description": "\u8f66\u5e97\u4e91\u7ba1\u5bb6 - SaaS \u591a\u5546\u6237\u6c7d\u670d\u95e8\u5e97\u7ba1\u7406\u7cfb\u7edf",
+  "scripts": {
+    "dev": "pnpm --filter @car/api run start:dev & pnpm --filter @car/web run dev",
+    "dev:api": "pnpm --filter @car/api run start:dev",
+    "dev:web": "pnpm --filter @car/web run dev",
+    "build": "pnpm --filter @car/api run build && pnpm --filter @car/web run build",
+    "build:api": "pnpm --filter @car/api run build",
+    "build:web": "pnpm --filter @car/web run build",
+    "lint": "pnpm -r run lint",
+    "db:migrate": "pnpm --filter @car/api run prisma:migrate",
+    "db:seed": "pnpm --filter @car/api run prisma:seed",
+    "db:studio": "pnpm --filter @car/api run prisma:studio"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "bcrypt",
+      "prisma",
+      "@prisma/client",
+      "@prisma/engines",
+      "@nestjs/core"
+    ]
+  }
+}

@@ -1,0 +1,895 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== 平台级表 ====================
+
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String
+  contactName String?
+  contactPhone String?
+  status      String   @default("active") // active, suspended, expired
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions   TenantSubscription[]
+  featureFlags    TenantFeatureFlag[]
+  shops           Shop[]
+  users           User[]
+  employees       Employee[]
+  roles           Role[]
+  dictionaries    Dictionary[]
+  systemParameters SystemParameter[]
+  files           File[]
+  auditLogs       AuditLog[]
+  appDevices      AppDevice[]
+  customers       Customer[]
+  vehicles        Vehicle[]
+  appointments    Appointment[]
+  receptions      Reception[]
+  serviceItems    ServiceItem[]
+  workOrders      WorkOrder[]
+  workOrderItems  WorkOrderItem[]
+  inspectionRecords InspectionRecord[]
+  dispatchTasks   DispatchTask[]
+  parts           Part[]
+  suppliers       Supplier[]
+  warehouses      Warehouse[]
+  stockBalances   StockBalance[]
+  stockBills      StockBill[]
+  stockBillItems  StockBillItem[]
+  stockMovements  StockMovement[]
+  settlements     Settlement[]
+  payments        Payment[]
+  storedValueCards StoredValueCard[]
+  storedValueTransactions StoredValueTransaction[]
+  packageCards    PackageCard[]
+  packageCardItems PackageCardItem[]
+  packageCardTransactions PackageCardTransaction[]
+
+  @@map("tenants")
+}
+
+model SubscriptionPlan {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  priceYearly Decimal  @db.Decimal(12, 2)
+  maxShops    Int
+  maxEmployees Int
+  features    Json?    // 功能列表 JSON
+  status      String   @default("active") // active, inactive
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenantSubscriptions TenantSubscription[]
+
+  @@map("subscription_plans")
+}
+
+model TenantSubscription {
+  id          String   @id @default(cuid())
+  tenantId    String
+  planId      String
+  startAt     DateTime
+  endAt       DateTime
+  status      String   @default("active") // active, expired, cancelled
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id])
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@index([tenantId])
+  @@index([planId])
+  @@map("tenant_subscriptions")
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  tenantFlags TenantFeatureFlag[]
+
+  @@map("feature_flags")
+}
+
+model TenantFeatureFlag {
+  id            String   @id @default(cuid())
+  tenantId      String
+  featureFlagId String
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  featureFlag FeatureFlag @relation(fields: [featureFlagId], references: [id])
+
+  @@unique([tenantId, featureFlagId])
+  @@index([tenantId])
+  @@map("tenant_feature_flags")
+}
+
+// ==================== 商户级表 ====================
+
+model Shop {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  address     String?
+  phone       String?
+  status      String   @default("active") // active, inactive
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  employees Employee[]
+
+  @@index([tenantId])
+  @@map("shops")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  tenantId       String?   // null for platform users
+  phone          String
+  passwordHash   String
+  name           String
+  avatar         String?
+  isPlatform     Boolean   @default(false)
+  status         String    @default("active") // active, disabled
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  tenant         Tenant?   @relation(fields: [tenantId], references: [id])
+  employee       Employee?
+  userRoles      UserRole[]
+  refreshTokens  RefreshToken[]
+  files          File[]    @relation("UploadedFiles")
+  auditLogs      AuditLog[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+  @@index([phone])
+  @@map("users")
+}
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  userId      String
+  token       String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Employee {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  tenantId  String
+  shopId    String
+  position  String?
+  status    String   @default("active") // active, disabled
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  shop   Shop   @relation(fields: [shopId], references: [id])
+
+  @@index([tenantId])
+  @@index([shopId])
+  @@map("employees")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  tenantId    String?  // null for platform roles
+  name        String
+  code        String
+  description String?
+  isBuiltIn   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id])
+  rolePermissions RolePermission[]
+  userRoles     UserRole[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  module      String
+  description String?
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+// ==================== 通用表 ====================
+
+model Dictionary {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  type      String
+  code      String
+  name      String
+  sort      Int      @default(0)
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, type, code])
+  @@index([tenantId, type])
+  @@map("dictionaries")
+}
+
+model SystemParameter {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  group     String
+  key       String
+  value     String
+  remark    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, group, key])
+  @@index([tenantId])
+  @@map("system_parameters")
+}
+
+model File {
+  id            String   @id @default(cuid())
+  tenantId      String
+  uploadedBy    String
+  originalName  String
+  fileName      String
+  mimeType      String
+  size          Int
+  url           String
+  source        String?  // 来源端: web, app
+  businessType  String?  // 业务对象类型
+  businessId    String?  // 业务对象 ID
+  createdAt     DateTime @default(now())
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  uploader User   @relation("UploadedFiles", fields: [uploadedBy], references: [id])
+
+  @@index([tenantId])
+  @@index([businessType, businessId])
+  @@map("files")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  userId      String?
+  action      String
+  targetType  String
+  targetId    String?
+  changes     Json?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model AppDevice {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String
+  deviceToken String
+  platform    String   // android, ios
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("app_devices")
+}
+
+// ==================== Sprint 1: 客户车辆与接待 ====================
+
+model Customer {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  phone       String
+  gender      String?  // male, female
+  email       String?
+  address     String?
+  remark      String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  vehicles    Vehicle[]
+  appointments Appointment[]
+  receptions  Reception[]
+  workOrders  WorkOrder[]
+
+  @@index([tenantId])
+  @@index([tenantId, phone])
+  @@map("customers")
+}
+
+model Vehicle {
+  id          String   @id @default(cuid())
+  tenantId    String
+  customerId  String
+  plateNo     String
+  brand       String?
+  model       String?
+  vin         String?
+  engineNo    String?
+  color       String?
+  mileage     Int?     // 公里数
+  firstRegDate DateTime?
+  remark      String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  appointments Appointment[]
+  receptions  Reception[]
+  workOrders  WorkOrder[]
+
+  @@index([tenantId])
+  @@index([tenantId, plateNo])
+  @@index([tenantId, vin])
+  @@map("vehicles")
+}
+
+model Appointment {
+  id          String   @id @default(cuid())
+  tenantId    String
+  shopId      String
+  customerId  String
+  vehicleId   String?
+  serviceType String   // repair, wash, maintenance, inspection
+  appointTime DateTime
+  description String?
+  status      String   @default("pending") // pending, confirmed, arrived, cancelled, completed
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  vehicle     Vehicle?    @relation(fields: [vehicleId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, shopId])
+  @@index([tenantId, appointTime])
+  @@map("appointments")
+}
+
+model Reception {
+  id          String   @id @default(cuid())
+  tenantId    String
+  shopId      String
+  customerId  String
+  vehicleId   String
+  advisorId   String   // 接待顾问
+  appointmentId String? // 关联预约
+  arriveTime  DateTime @default(now())
+  description String?
+  status      String   @default("receiving") // receiving, converted, cancelled
+  workOrderId String?  // 转换后的工单
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  vehicle     Vehicle     @relation(fields: [vehicleId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, shopId])
+  @@map("receptions")
+}
+
+model ServiceItem {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  category    String   // repair, wash, maintenance, accessory, other
+  unit        String   @default("次")
+  unitPrice   Decimal  @db.Decimal(12, 2)
+  description String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  workOrderItems WorkOrderItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, category])
+  @@map("service_items")
+}
+
+model WorkOrder {
+  id              String   @id @default(cuid())
+  tenantId        String
+  shopId          String
+  orderNo         String   // 工单号，自动生成
+  orderType       String   // repair, wash, quick
+  customerId      String
+  vehicleId       String
+  vehiclePlateNo  String   // 冗余，方便查询
+  vehicleMileage  Int?     // 进店里程
+  advisorId       String?  // 服务顾问
+  description     String?  // 故障描述/服务要求
+  status          String   @default("draft") // draft, quoted, confirmed, dispatching, in_progress, completed, settled, cancelled
+  totalAmount     Decimal  @default(0) @db.Decimal(12, 2)
+  discountAmount  Decimal  @default(0) @db.Decimal(12, 2)
+  payableAmount   Decimal  @default(0) @db.Decimal(12, 2)
+  remark          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  vehicle     Vehicle     @relation(fields: [vehicleId], references: [id])
+  items       WorkOrderItem[]
+  inspections InspectionRecord[]
+  dispatchTasks DispatchTask[]
+
+  @@unique([tenantId, orderNo])
+  @@index([tenantId])
+  @@index([tenantId, shopId])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@map("work_orders")
+}
+
+model WorkOrderItem {
+  id            String   @id @default(cuid())
+  tenantId      String
+  workOrderId   String
+  serviceItemId String?
+  itemType      String   // service, part, addon
+  name          String
+  quantity      Decimal  @default(1) @db.Decimal(10, 2)
+  unit          String   @default("次")
+  unitPrice     Decimal  @db.Decimal(12, 2)
+  amount        Decimal  @db.Decimal(12, 2)
+  technicianId  String?  // 技师
+  remark        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  workOrder    WorkOrder    @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  serviceItem  ServiceItem? @relation(fields: [serviceItemId], references: [id])
+
+  @@index([tenantId])
+  @@index([workOrderId])
+  @@map("work_order_items")
+}
+
+model InspectionRecord {
+  id          String   @id @default(cuid())
+  tenantId    String
+  workOrderId String
+  category    String   // exterior, interior, engine, chassis, tire, fluid
+  item        String
+  condition   String   // good, fair, poor, replace
+  note        String?
+  photoUrl    String?
+  createdAt   DateTime @default(now())
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([workOrderId])
+  @@map("inspection_records")
+}
+
+model DispatchTask {
+  id          String   @id @default(cuid())
+  tenantId    String
+  workOrderId String
+  technicianId String
+  itemIds     String?  // JSON array of work_order_item ids
+  status      String   @default("pending") // pending, in_progress, paused, completed
+  startAt     DateTime?
+  endAt       DateTime?
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([workOrderId])
+  @@index([technicianId])
+  @@map("dispatch_tasks")
+}
+
+// ==================== Sprint 2: 库存管理 ====================
+
+model Part {
+  id            String   @id @default(cuid())
+  tenantId      String
+  code          String   // 配件编码
+  name          String
+  category      String?
+  brand         String?
+  supplierId    String?  // 供货商
+  warrantyMonths Int     @default(0) // 质保月数，0=无质保
+  unit          String   @default("个")
+  costPrice     Decimal  @default(0) @db.Decimal(12, 2)
+  salePrice     Decimal  @default(0) @db.Decimal(12, 2)
+  minStock      Int      @default(0) // 库存预警下限
+  remark        String?
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  supplier    Supplier?   @relation(fields: [supplierId], references: [id])
+  stockBalances StockBalance[]
+  stockBillItems StockBillItem[]
+  stockMovements StockMovement[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("parts")
+}
+
+model Supplier {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  contactName String?
+  phone       String?
+  address     String?
+  remark      String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  parts       Part[]
+  stockBills  StockBill[]
+
+  @@index([tenantId])
+  @@map("suppliers")
+}
+
+model Warehouse {
+  id          String   @id @default(cuid())
+  tenantId    String
+  shopId      String
+  name        String
+  isDefault   Boolean  @default(false)
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  stockBalances StockBalance[]
+  stockMovements StockMovement[]
+
+  @@index([tenantId])
+  @@index([tenantId, shopId])
+  @@map("warehouses")
+}
+
+model StockBalance {
+  id            String   @id @default(cuid())
+  tenantId      String
+  warehouseId   String
+  partId        String
+  quantity      Decimal  @default(0) @db.Decimal(12, 2)
+  updatedAt     DateTime @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  part      Part      @relation(fields: [partId], references: [id])
+
+  @@unique([tenantId, warehouseId, partId])
+  @@index([tenantId])
+  @@map("stock_balances")
+}
+
+model StockBill {
+  id          String   @id @default(cuid())
+  tenantId    String
+  shopId      String
+  billNo      String
+  billType    String   // in, out, adjust, return
+  supplierId  String?
+  relatedType String?  // work_order, etc
+  relatedId   String?
+  status      String   @default("draft") // draft, confirmed, cancelled
+  remark      String?
+  operatorId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  supplier    Supplier?   @relation(fields: [supplierId], references: [id])
+  items       StockBillItem[]
+  movements   StockMovement[]
+
+  @@unique([tenantId, billNo])
+  @@index([tenantId])
+  @@index([tenantId, billType])
+  @@map("stock_bills")
+}
+
+model StockBillItem {
+  id          String   @id @default(cuid())
+  tenantId    String
+  billId      String
+  partId      String
+  quantity    Decimal  @db.Decimal(12, 2)
+  unitPrice   Decimal  @db.Decimal(12, 2)
+  amount      Decimal  @db.Decimal(12, 2)
+  remark      String?
+  createdAt   DateTime @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  bill        StockBill   @relation(fields: [billId], references: [id], onDelete: Cascade)
+  part        Part        @relation(fields: [partId], references: [id])
+
+  @@index([tenantId])
+  @@index([billId])
+  @@map("stock_bill_items")
+}
+
+model StockMovement {
+  id            String   @id @default(cuid())
+  tenantId      String
+  partId        String
+  warehouseId   String
+  movementType  String   // in, out, adjust
+  quantity       Decimal  @db.Decimal(12, 2)
+  balanceAfter  Decimal  @db.Decimal(12, 2)
+  billId        String?
+  billItemId    String?
+  relatedType   String?
+  relatedId     String?
+  operatorId    String
+  remark        String?
+  createdAt     DateTime @default(now())
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  part      Part      @relation(fields: [partId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  bill      StockBill? @relation(fields: [billId], references: [id])
+
+  @@index([tenantId])
+  @@index([partId])
+  @@index([warehouseId])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
+
+// ==================== Sprint 3: 结算与会员 ====================
+
+model Settlement {
+  id              String   @id @default(cuid())
+  tenantId        String
+  shopId          String
+  settleNo        String   // 结算单号
+  workOrderId     String
+  totalAmount     Decimal  @db.Decimal(12, 2)
+  discountAmount  Decimal  @default(0) @db.Decimal(12, 2)
+  payableAmount   Decimal  @db.Decimal(12, 2)
+  paidAmount      Decimal  @default(0) @db.Decimal(12, 2)
+  debtAmount      Decimal  @default(0) @db.Decimal(12, 2)
+  status          String   @default("settled") // settled, refunded, partially_refunded
+  remark          String?
+  operatorId      String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  payments  Payment[]
+
+  @@unique([tenantId, settleNo])
+  @@index([tenantId])
+  @@index([tenantId, workOrderId])
+  @@map("settlements")
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  tenantId      String
+  settlementId  String
+  payMethod     String   // cash, wechat, alipay, card, stored_value, package_card
+  amount        Decimal  @db.Decimal(12, 2)
+  referenceNo   String?  // 外部流水号
+  cardId        String?  // 储值卡/套餐卡 ID
+  remark        String?
+  createdAt     DateTime @default(now())
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  settlement Settlement @relation(fields: [settlementId], references: [id])
+
+  @@index([tenantId])
+  @@index([settlementId])
+  @@map("payments")
+}
+
+model StoredValueCard {
+  id              String   @id @default(cuid())
+  tenantId        String
+  cardNo          String   // 卡号
+  customerId      String
+  balance         Decimal  @default(0) @db.Decimal(12, 2) // 总余额
+  principalBalance Decimal @default(0) @db.Decimal(12, 2) // 本金余额
+  giftBalance     Decimal  @default(0) @db.Decimal(12, 2) // 赠送余额
+  status          String   @default("active") // active, frozen, cancelled
+  remark          String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  transactions StoredValueTransaction[]
+
+  @@unique([tenantId, cardNo])
+  @@index([tenantId])
+  @@index([tenantId, customerId])
+  @@map("stored_value_cards")
+}
+
+model StoredValueTransaction {
+  id          String   @id @default(cuid())
+  tenantId    String
+  cardId      String
+  type        String   // recharge, consume, refund, gift, adjust
+  amount      Decimal  @db.Decimal(12, 2) // 正数加、负数减
+  principal   Decimal  @default(0) @db.Decimal(12, 2) // 本金变动
+  gift        Decimal  @default(0) @db.Decimal(12, 2) // 赠送变动
+  balanceAfter Decimal @db.Decimal(12, 2)
+  relatedType String?  // settlement, etc
+  relatedId   String?
+  operatorId  String
+  remark      String?
+  createdAt   DateTime @default(now())
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id])
+  card   StoredValueCard  @relation(fields: [cardId], references: [id])
+
+  @@index([tenantId])
+  @@index([cardId])
+  @@index([createdAt])
+  @@map("stored_value_transactions")
+}
+
+model PackageCard {
+  id          String   @id @default(cuid())
+  tenantId    String
+  cardNo      String   // 卡号
+  customerId  String
+  vehicleId   String?  // 适用车辆
+  shopIds     String?  // 适用门店 JSON
+  templateId  String?  // 套餐模板
+  name        String
+  startAt     DateTime
+  endAt       DateTime
+  status      String   @default("active") // active, expired, cancelled
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  items       PackageCardItem[]
+  transactions PackageCardTransaction[]
+
+  @@unique([tenantId, cardNo])
+  @@index([tenantId])
+  @@index([tenantId, customerId])
+  @@map("package_cards")
+}
+
+model PackageCardItem {
+  id          String   @id @default(cuid())
+  tenantId    String
+  cardId      String
+  serviceItemId String
+  totalQty    Decimal  @db.Decimal(10, 2) // 总次数
+  remainQty   Decimal  @db.Decimal(10, 2) // 剩余次数
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  card        PackageCard  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([cardId])
+  @@map("package_card_items")
+}
+
+model PackageCardTransaction {
+  id          String   @id @default(cuid())
+  tenantId    String
+  cardId      String
+  itemId      String
+  type        String   // consume, refund, adjust
+  quantity    Decimal  @db.Decimal(10, 2)
+  remainAfter Decimal  @db.Decimal(10, 2)
+  relatedType String?  // work_order
+  relatedId   String?
+  operatorId  String
+  remark      String?
+  createdAt   DateTime @default(now())
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id])
+  card   PackageCard     @relation(fields: [cardId], references: [id])
+
+  @@index([tenantId])
+  @@index([cardId])
+  @@index([createdAt])
+  @@map("package_card_transactions")
+}

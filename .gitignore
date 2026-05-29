@@ -1,0 +1,35 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+coverage/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build outputs
+apps/api/dist/
+apps/web/dist/
+apps/mobile/dist/
+apps/mobile/unpackage/
+apps/mobile/android/app/src/main/assets/h5/
+apps/mobile/android/.gradle/
+apps/mobile/android/app/build/
+apps/mobile/android/build/
+.gradle/
+
+# Android SDK (误放的)
+apps/api/latest/
+apps/api/cmdline-tools/
+
+# Docker volumes
+pgdata/
+redisdata/
+miniodata/
+
+# OS
+Thumbs.db
+.DS_Store
