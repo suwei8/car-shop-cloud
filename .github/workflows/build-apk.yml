@@ -75,6 +75,9 @@ jobs:
     - name: Sign APK
       working-directory: apps/mobile/android
       run: |
+        # 添加 Android SDK 工具到 PATH
+        export PATH=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools/ | sort -V | tail -1):$ANDROID_HOME/platform-tools:$PATH
+
         # 获取 debug keystore 路径
         DEBUG_KEYSTORE=$ANDROID_HOME/debug.keystore
         if [ ! -f "$DEBUG_KEYSTORE" ]; then
