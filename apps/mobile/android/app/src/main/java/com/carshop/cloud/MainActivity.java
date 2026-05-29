@@ -15,8 +15,8 @@ public class MainActivity extends Activity {
     private WebView webView;
     private ProgressBar progressBar;
 
-    // H5 服务器地址
-    private static final String BASE_URL = "http://168.110.210.80:5174";
+    // H5 服务器地址 (Cloudflare Tunnel)
+    private static final String BASE_URL = "https://car-admin.555606.xyz";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
