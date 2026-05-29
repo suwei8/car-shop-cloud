@@ -35,6 +35,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
+import { API_BASE_URL } from '../../config';
 
 const tasks = ref<any[]>([]);
 const status = ref('');
@@ -48,7 +49,7 @@ async function fetchTasks() {
   const token = uni.getStorageSync('accessToken');
   const params = status.value ? `?status=${status.value}` : '';
   const res: any = await uni.request({
-    url: `/api/dispatch/my-tasks${params}`,
+    url: `${API_BASE_URL}/api/dispatch/my-tasks${params}`,
     method: 'GET',
     header: { Authorization: `Bearer ${token}` },
   });

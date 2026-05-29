@@ -29,6 +29,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { API_BASE_URL } from '../../config';
 
 const cards = ref<any[]>([]);
 
@@ -37,7 +38,7 @@ onMounted(async () => {
   const userInfo = JSON.parse(uni.getStorageSync('userInfo') || '{}');
 
   const res: any = await uni.request({
-    url: `/api/stored-value-cards?customerId=${userInfo.id || ''}`,
+    url: `${API_BASE_URL}/api/stored-value-cards?customerId=${userInfo.id || ''}`,
     method: 'GET',
     header: { Authorization: `Bearer ${token}` },
   });
