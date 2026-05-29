@@ -1,4 +1,4 @@
-package com.carshop.app;
+package com.carshop.cloud;
 
 import android.app.Activity;
 import android.os.Bundle;
