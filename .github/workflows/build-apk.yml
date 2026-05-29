@@ -76,7 +76,8 @@ jobs:
       working-directory: apps/mobile/android
       run: |
         # 添加 Android SDK 工具到 PATH
-        export PATH=$ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools/ | sort -V | tail -1):$ANDROID_HOME/platform-tools:$PATH
+        BUILD_TOOLS=$(ls $ANDROID_HOME/build-tools/ | sort -V | tail -1)
+        export PATH=$ANDROID_HOME/build-tools/$BUILD_TOOLS:$ANDROID_HOME/platform-tools:$PATH
 
         # 获取 debug keystore 路径
         DEBUG_KEYSTORE=$ANDROID_HOME/debug.keystore
@@ -85,16 +86,15 @@ jobs:
           keytool -genkeypair -v -keystore $DEBUG_KEYSTORE -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
         fi
 
-        # 签名 APK
+        # 签名 APK (使用 apksigner 支持 v2 签名)
         APK_PATH=app/build/outputs/apk/debug/app-debug.apk
         SIGNED_APK=app/build/outputs/apk/debug/app-debug-signed.apk
 
         cp $APK_PATH $SIGNED_APK
-        jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore $DEBUG_KEYSTORE -storepass android -keypass android $SIGNED_APK androiddebugkey
+        apksigner sign --ks $DEBUG_KEYSTORE --ks-pass pass:android --key-pass pass:android --ks-key-alias androiddebugkey $SIGNED_APK
+        apksigner verify $SIGNED_APK
 
-        # zipalign
-        zipalign -v 4 $SIGNED_APK ${APK_PATH}.aligned
-        mv ${APK_PATH}.aligned $APK_PATH
+        mv $SIGNED_APK $APK_PATH
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
