@@ -33,21 +33,43 @@ jobs:
       uses: android-actions/setup-android@v3
 
     - name: Install dependencies
-      run: pnpm install
+      run: pnpm install --no-frozen-lockfile
 
     - name: Build uni-app H5
       working-directory: apps/mobile
       run: |
-        pnpm build:h5
+        # 使用 npx 直接调用 uni CLI
+        npx uni build -p h5
+
+        # 检查构建产物
+        echo "=== 构建产物 ==="
+        ls -la dist/build/app/ || ls -la dist/ || echo "无构建产物"
+
+        # 复制到 Android assets
         mkdir -p android/app/src/main/assets/h5
-        cp -r dist/build/app/* android/app/src/main/assets/h5/
-        cp android/app/src/main/assets/h5/__uniappview.html android/app/src/main/assets/h5/index.html
+
+        # 如果有 app 目录就复制，否则复制整个 dist
+        if [ -d "dist/build/app" ]; then
+          cp -r dist/build/app/* android/app/src/main/assets/h5/
+        elif [ -d "dist/build/h5" ]; then
+          cp -r dist/build/h5/* android/app/src/main/assets/h5/
+        else
+          cp -r dist/* android/app/src/main/assets/h5/
+        fi
+
+        # 创建 index.html 入口
+        if [ -f "android/app/src/main/assets/h5/__uniappview.html" ]; then
+          cp android/app/src/main/assets/h5/__uniappview.html android/app/src/main/assets/h5/index.html
+        fi
+
+        echo "=== Assets 内容 ==="
+        ls -la android/app/src/main/assets/h5/
 
     - name: Build Debug APK
       working-directory: apps/mobile/android
       run: |
-        chmod +x gradlew 2>/dev/null || true
-        gradle assembleDebug
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
