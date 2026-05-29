@@ -69,7 +69,29 @@ jobs:
       working-directory: apps/mobile/android
       run: |
         chmod +x gradlew
+        # 使用 debug keystore 签名
         ./gradlew assembleDebug --no-daemon
+
+    - name: Sign APK
+      working-directory: apps/mobile/android
+      run: |
+        # 获取 debug keystore 路径
+        DEBUG_KEYSTORE=$ANDROID_HOME/debug.keystore
+        if [ ! -f "$DEBUG_KEYSTORE" ]; then
+          # 创建 debug keystore
+          keytool -genkeypair -v -keystore $DEBUG_KEYSTORE -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+        fi
+
+        # 签名 APK
+        APK_PATH=app/build/outputs/apk/debug/app-debug.apk
+        SIGNED_APK=app/build/outputs/apk/debug/app-debug-signed.apk
+
+        cp $APK_PATH $SIGNED_APK
+        jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore $DEBUG_KEYSTORE -storepass android -keypass android $SIGNED_APK androiddebugkey
+
+        # zipalign
+        zipalign -v 4 $SIGNED_APK ${APK_PATH}.aligned
+        mv ${APK_PATH}.aligned $APK_PATH
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
