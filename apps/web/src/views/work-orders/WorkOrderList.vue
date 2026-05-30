@@ -31,7 +31,7 @@
     <el-table :data="list" v-loading="loading" border>
       <el-table-column prop="orderNo" label="工单号" width="180" />
       <el-table-column label="类型" width="80">
-        <template #default="{ row }">{{ { repair: '维修', wash: '洗美', quick: '快单' }[row.orderType] }}</template>
+        <template #default="{ row }">{{ ({ repair: '维修', wash: '洗美', quick: '快单' } as Record<string, string>)[row.orderType] }}</template>
       </el-table-column>
       <el-table-column label="客户" width="120">
         <template #default="{ row }">{{ row.customer?.name }}</template>

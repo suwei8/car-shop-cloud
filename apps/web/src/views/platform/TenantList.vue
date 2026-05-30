@@ -17,7 +17,7 @@
       <el-table-column prop="status" label="状态">
         <template #default="{ row }">
           <el-tag :type="row.status === 'active' ? 'success' : 'danger'">
-            {{ { active: '正常', suspended: '已停用', expired: '已过期' }[row.status] || row.status }}
+            {{ ({ active: '正常', suspended: '已停用', expired: '已过期' } as Record<string, string>)[row.status] || row.status }}
           </el-tag>
         </template>
       </el-table-column>

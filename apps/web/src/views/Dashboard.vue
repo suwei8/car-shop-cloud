@@ -79,7 +79,7 @@
             <el-table-column label="状态" width="80">
               <template #default="{ row }">
                 <el-tag :type="row.status === 'arrived' ? 'success' : ''" size="small">
-                  {{ { pending: '待确认', confirmed: '已确认', arrived: '已到店' }[row.status] }}
+                  {{ ({ pending: '待确认', confirmed: '已确认', arrived: '已到店' } as Record<string, string>)[row.status] }}
                 </el-tag>
               </template>
             </el-table-column>

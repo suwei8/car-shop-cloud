@@ -18,7 +18,7 @@
       <el-table-column prop="name" label="姓名" width="120" />
       <el-table-column prop="phone" label="手机号" width="140" />
       <el-table-column label="性别" width="80">
-        <template #default="{ row }">{{ { male: '男', female: '女' }[row.gender] || '-' }}</template>
+        <template #default="{ row }">{{ ({ male: '男', female: '女' } as Record<string, string>)[row.gender] || '-' }}</template>
       </el-table-column>
       <el-table-column label="车辆数" width="80">
         <template #default="{ row }">{{ row.vehicles?.length || 0 }}</template>

@@ -26,7 +26,7 @@
         <template #default="{ row }">{{ row.workOrder?.vehiclePlateNo }}</template>
       </el-table-column>
       <el-table-column label="类型" width="80">
-        <template #default="{ row }">{{ { repair: '维修', wash: '洗美', quick: '快单' }[row.workOrder?.orderType] }}</template>
+        <template #default="{ row }">{{ ({ repair: '维修', wash: '洗美', quick: '快单' } as Record<string, string>)[row.workOrder?.orderType] }}</template>
       </el-table-column>
       <el-table-column label="状态" width="100">
         <template #default="{ row }">

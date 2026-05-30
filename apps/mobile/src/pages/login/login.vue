@@ -14,7 +14,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { API_BASE_URL } from '../../config';
+import { request } from '../../utils/request';
 
 const phone = ref('');
 const password = ref('');
@@ -27,12 +27,12 @@ async function handleLogin() {
   }
   loading.value = true;
   try {
-    const res: any = await uni.request({
-      url: `${API_BASE_URL}/api/auth/login`,
+    const res = await request({
+      url: '/api/auth/login',
       method: 'POST',
-      header: { 'Content-Type': 'application/json' },
       data: { phone: phone.value, password: password.value },
     });
+
     if (res.data?.code === 0) {
       uni.setStorageSync('accessToken', res.data.data.accessToken);
       uni.setStorageSync('refreshToken', res.data.data.refreshToken);
@@ -41,8 +41,9 @@ async function handleLogin() {
     } else {
       uni.showToast({ title: res.data?.message || '登录失败', icon: 'none' });
     }
-  } catch (e) {
-    uni.showToast({ title: '网络错误', icon: 'none' });
+  } catch (e: any) {
+    console.error('Login error:', e);
+    uni.showToast({ title: '网络错误: ' + (e.message || '未知'), icon: 'none', duration: 3000 });
   } finally {
     loading.value = false;
   }

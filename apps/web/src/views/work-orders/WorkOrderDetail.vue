@@ -24,7 +24,7 @@
             <template #header>工单信息</template>
             <el-descriptions :column="1" border size="small">
               <el-descriptions-item label="工单号">{{ order.orderNo }}</el-descriptions-item>
-              <el-descriptions-item label="类型">{{ { repair: '维修', wash: '洗美', quick: '快单' }[order.orderType] }}</el-descriptions-item>
+              <el-descriptions-item label="类型">{{ ({ repair: '维修', wash: '洗美', quick: '快单' } as Record<string, string>)[order.orderType] }}</el-descriptions-item>
               <el-descriptions-item label="状态">
                 <el-tag>{{ statusLabel(order.status) }}</el-tag>
               </el-descriptions-item>
@@ -45,7 +45,7 @@
         <el-table :data="order.items" border size="small">
           <el-table-column prop="name" label="项目名称" />
           <el-table-column label="类型" width="80">
-            <template #default="{ row }">{{ { service: '工时', part: '配件', addon: '其他' }[row.itemType] }}</template>
+            <template #default="{ row }">{{ ({ service: '工时', part: '配件', addon: '其他' } as Record<string, string>)[row.itemType] }}</template>
           </el-table-column>
           <el-table-column prop="quantity" label="数量" width="80" />
           <el-table-column label="单价" width="100">

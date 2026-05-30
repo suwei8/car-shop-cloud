@@ -68,7 +68,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { API_BASE_URL } from '../../config';
+import { request } from '../../utils/request';
 
 const order = ref<any>(null);
 
@@ -87,8 +87,8 @@ onMounted(async () => {
   const id = page.$page?.options?.id || page.options?.id;
 
   const token = uni.getStorageSync('accessToken');
-  const res: any = await uni.request({
-    url: `${API_BASE_URL}/api/work-orders/${id}`,
+  const res: any = await request({
+    url: `/api/work-orders/${id}`,
     method: 'GET',
     header: { Authorization: `Bearer ${token}` },
   });

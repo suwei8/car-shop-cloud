@@ -41,7 +41,7 @@
         <tr v-for="(item, index) in data.items" :key="index">
           <td>{{ index + 1 }}</td>
           <td>{{ item.name }}</td>
-          <td>{{ { service: '工时', part: '配件', addon: '其他' }[item.itemType] }}</td>
+          <td>{{ ({ service: '工时', part: '配件', addon: '其他' } as Record<string, string>)[item.itemType] }}</td>
           <td>{{ item.quantity }} {{ item.unit }}</td>
           <td>¥{{ item.unitPrice.toFixed(2) }}</td>
           <td>¥{{ item.amount.toFixed(2) }}</td>
@@ -70,7 +70,7 @@
           <tr v-for="(insp, index) in data.inspections" :key="index">
             <td>{{ insp.category }}</td>
             <td>{{ insp.item }}</td>
-            <td>{{ { good: '良好', fair: '一般', poor: '差', replace: '需更换' }[insp.condition] }}</td>
+            <td>{{ ({ good: '良好', fair: '一般', poor: '差', replace: '需更换' } as Record<string, string>)[insp.condition] }}</td>
             <td>{{ insp.note || '-' }}</td>
           </tr>
         </tbody>

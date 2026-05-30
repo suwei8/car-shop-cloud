@@ -18,7 +18,7 @@
       </el-table-column>
       <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }">
-          <el-tag :type="row.status === 'active' ? 'success' : 'info'">{{ { active: '正常', frozen: '冻结', cancelled: '注销' }[row.status] }}</el-tag>
+          <el-tag :type="row.status === 'active' ? 'success' : 'info'">{{ ({ active: '正常', frozen: '冻结', cancelled: '注销' } as Record<string, string>)[row.status] }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="createdAt" label="创建时间" width="180">
@@ -78,7 +78,7 @@
     <el-dialog v-model="transactionDialogVisible" title="储值流水" width="700px">
       <el-table :data="transactions" border size="small">
         <el-table-column prop="type" label="类型" width="80">
-          <template #default="{ row }">{{ { recharge: '充值', consume: '消费', refund: '退款', gift: '赠送', adjust: '调整' }[row.type] }}</template>
+          <template #default="{ row }">{{ ({ recharge: '充值', consume: '消费', refund: '退款', gift: '赠送', adjust: '调整' } as Record<string, string>)[row.type] }}</template>
         </el-table-column>
         <el-table-column label="金额" width="100">
           <template #default="{ row }">¥{{ Number(row.amount).toFixed(2) }}</template>
