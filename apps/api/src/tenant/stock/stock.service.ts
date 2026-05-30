@@ -127,7 +127,7 @@ export class StockService {
           items: {
             create: partItems.map(item => ({
               tenantId: user.tenantId!,
-              partId: item.serviceItemId || '',
+              partId: item.partId || '',
               quantity: Number(item.quantity),
               unitPrice: Number(item.unitPrice),
               amount: Number(item.amount),

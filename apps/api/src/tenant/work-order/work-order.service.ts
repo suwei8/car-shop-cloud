@@ -61,11 +61,17 @@ export class WorkOrderService {
 
     const orderNo = await this.generateOrderNo(user.tenantId!);
 
-    const items = (data.items || []).map(item => ({
-      ...item,
-      tenantId: user.tenantId!,
-      amount: item.quantity * item.unitPrice,
-    }));
+    const items = (data.items || []).map(item => {
+      const isPart = item.itemType === 'part';
+      const { serviceItemId: _, ...rest } = item;
+      return {
+        ...rest,
+        part: isPart && item.serviceItemId ? { connect: { id: item.serviceItemId } } : undefined,
+        serviceItem: !isPart && item.serviceItemId ? { connect: { id: item.serviceItemId } } : undefined,
+        tenant: { connect: { id: user.tenantId! } },
+        amount: item.quantity * item.unitPrice,
+      };
+    });
 
     const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
 
@@ -107,12 +113,17 @@ export class WorkOrderService {
   }[], user: JwtPayload) {
     const order = await this.findOne(orderId, user);
 
-    const newItems = items.map(item => ({
-      ...item,
-      tenantId: user.tenantId!,
-      workOrderId: orderId,
-      amount: item.quantity * item.unitPrice,
-    }));
+    const newItems = items.map(item => {
+      const isPart = item.itemType === 'part';
+      return {
+        ...item,
+        partId: isPart ? item.serviceItemId : null,
+        serviceItemId: isPart ? null : (item.serviceItemId || null),
+        tenantId: user.tenantId!,
+        workOrderId: orderId,
+        amount: item.quantity * item.unitPrice,
+      };
+    });
 
     await this.prisma.workOrderItem.createMany({ data: newItems });
 

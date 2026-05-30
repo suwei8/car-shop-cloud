@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post,
-  Body, Query,
+  Body, Param, Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { StockService } from './stock.service';
@@ -45,7 +45,7 @@ export class StockController {
   @Post('out/work-order/:workOrderId')
   @RequirePermissions('tenant:inventory:manage')
   @ApiOperation({ summary: '工单出库' })
-  stockOutForWorkOrder(@Body('workOrderId') workOrderId: string, @CurrentUser() user: JwtPayload) {
+  stockOutForWorkOrder(@Param('workOrderId') workOrderId: string, @CurrentUser() user: JwtPayload) {
     return this.service.stockOutForWorkOrder(workOrderId, user);
   }
 }
