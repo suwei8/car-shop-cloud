@@ -13,12 +13,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { request } from '../../utils/request';
+import { ref, onMounted } from 'vue';
+import { useAuthStore } from '../../stores/auth';
 
+const auth = useAuthStore();
 const phone = ref('');
 const password = ref('');
 const loading = ref(false);
+
+onMounted(() => {
+  if (auth.isLoggedIn) {
+    uni.reLaunch({ url: '/pages/index/index' });
+  }
+});
 
 async function handleLogin() {
   if (!phone.value || !password.value) {
@@ -27,22 +34,13 @@ async function handleLogin() {
   }
   loading.value = true;
   try {
-    const res = await request({
-      url: '/api/auth/login',
-      method: 'POST',
-      data: { phone: phone.value, password: password.value },
-    });
-
-    if (res.data?.code === 0) {
-      uni.setStorageSync('accessToken', res.data.data.accessToken);
-      uni.setStorageSync('refreshToken', res.data.data.refreshToken);
-      uni.setStorageSync('userInfo', JSON.stringify(res.data.data.user));
-      uni.switchTab({ url: '/pages/index/index' });
+    const ok = await auth.login(phone.value, password.value);
+    if (ok) {
+      uni.reLaunch({ url: '/pages/index/index' });
     } else {
-      uni.showToast({ title: res.data?.message || '登录失败', icon: 'none' });
+      uni.showToast({ title: '登录失败，请检查账号密码', icon: 'none' });
     }
   } catch (e: any) {
-    console.error('Login error:', e);
     uni.showToast({ title: '网络错误: ' + (e.message || '未知'), icon: 'none', duration: 3000 });
   } finally {
     loading.value = false;

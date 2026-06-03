@@ -87,15 +87,42 @@ export class PackageCardService {
     if (card.status !== 'active') throw new ForbiddenException('套餐卡状态异常');
     if (new Date() > card.endAt) throw new ForbiddenException('套餐卡已过期');
 
-    // 校验适用车辆
-    if (card.vehicleId && card.vehicleId !== data.relatedId) {
-      // 这里需要根据 relatedType 判断，简化处理
-    }
+    // 校验适用车辆和适用门店
+    if (data.relatedType === 'work-order') {
+      const workOrder = await this.prisma.workOrder.findFirst({
+        where: { id: data.relatedId, tenantId: user.tenantId! },
+      });
+      if (!workOrder) throw new NotFoundException('工单不存在');
 
-    // 校验适用门店
-    if (card.shopIds) {
-      const shopIds = JSON.parse(card.shopIds);
-      // 需要获取当前门店 ID 进行校验
+      // 校验车辆
+      if (card.vehicleId && card.vehicleId !== workOrder.vehicleId) {
+        throw new ForbiddenException('此套餐卡不适用于当前工单对应的车辆');
+      }
+
+      // 校验门店
+      if (card.shopIds) {
+        const shopIds: string[] = JSON.parse(card.shopIds);
+        if (!shopIds.includes(workOrder.shopId)) {
+          throw new ForbiddenException('此套餐卡不适用于当前工单所在的门店');
+        }
+      }
+    } else {
+      // 校验适用车辆 (直接针对车辆)
+      if (data.relatedType === 'vehicle') {
+        if (card.vehicleId && card.vehicleId !== data.relatedId) {
+          throw new ForbiddenException('此套餐卡不适用于当前车辆');
+        }
+      }
+
+      // 校验适用门店 (直接针对门店)
+      if (data.relatedType === 'shop') {
+        if (card.shopIds) {
+          const shopIds: string[] = JSON.parse(card.shopIds);
+          if (!shopIds.includes(data.relatedId)) {
+            throw new ForbiddenException('此套餐卡不适用于当前门店');
+          }
+        }
+      }
     }
 
     // 查找套餐项

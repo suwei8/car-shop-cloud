@@ -164,10 +164,14 @@ export class StoredValueCardService {
   async refund(cardId: string, data: { amount: number; remark: string }, user: JwtPayload) {
     const card = await this.findOne(cardId, user);
     if (card.status !== 'active') throw new ForbiddenException('卡片状态异常');
+    if (data.amount <= 0) throw new ForbiddenException('退款金额必须大于 0');
+    if (Number(card.principalBalance) < data.amount) {
+      throw new ForbiddenException(`退款金额不能超过本金余额(${Number(card.principalBalance)})`);
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.storedValueCard.update({
-        where: { id: cardId },
+        where: { id: cardId, tenantId: user.tenantId! },
         data: {
           balance: { decrement: data.amount },
           principalBalance: { decrement: data.amount },

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { PlatformTenantModule } from './platform/tenant/tenant.module';
@@ -29,6 +30,7 @@ import { ReportModule } from './tenant/report/report.module';
 import { PrintModule } from './tenant/print/print.module';
 import { FileModule } from './file/file.module';
 import { AuditModule } from './audit/audit.module';
+import { RolesGuard, PermissionsGuard, TenantGuard } from './common/guards';
 
 @Module({
   imports: [
@@ -64,6 +66,11 @@ import { AuditModule } from './audit/audit.module';
     DashboardModule,
     ReportModule,
     PrintModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: TenantGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })
 export class AppModule {}

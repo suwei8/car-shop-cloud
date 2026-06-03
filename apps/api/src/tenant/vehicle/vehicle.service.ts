@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
+import { VEHICLE_BRAND_LIBRARY } from './data/brand-library';
 
 @Injectable()
 export class VehicleService {
@@ -72,7 +73,7 @@ export class VehicleService {
   }, user: JwtPayload) {
     await this.findOne(id, user);
     return this.prisma.vehicle.update({
-      where: { id },
+      where: { id, tenantId: user.tenantId! },
       data: {
         ...data,
         firstRegDate: data.firstRegDate ? new Date(data.firstRegDate) : undefined,
@@ -148,5 +149,9 @@ export class VehicleService {
       years: toObj(yearMap),
       details: toObj(detailMap),
     };
+  }
+
+  getBrandLibrary() {
+    return VEHICLE_BRAND_LIBRARY;
   }
 }

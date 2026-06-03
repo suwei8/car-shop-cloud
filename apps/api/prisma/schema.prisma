@@ -488,6 +488,7 @@ model WorkOrder {
   totalAmount     Decimal  @default(0) @db.Decimal(12, 2)
   discountAmount  Decimal  @default(0) @db.Decimal(12, 2)
   payableAmount   Decimal  @default(0) @db.Decimal(12, 2)
+  expectDate      DateTime? // 预计交付时间
   remark          String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -563,6 +564,9 @@ model DispatchTask {
   status      String   @default("pending") // pending, in_progress, paused, completed
   startAt     DateTime?
   endAt       DateTime?
+  workPlace   String?  // 施工工位
+  team        String?  // 班组
+  assistantIds String? // 辅修人 ID 列表 (逗号分隔)
   remark      String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -896,4 +900,16 @@ model PackageCardTransaction {
   @@index([cardId])
   @@index([createdAt])
   @@map("package_card_transactions")
+}
+
+model Sequence {
+  id        String   @id @default(cuid())
+  tenantId  String
+  key       String
+  date      String
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, key, date])
+  @@map("sequences")
 }

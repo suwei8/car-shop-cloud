@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { UpdateUserDto } from './dto/user.dto';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -38,8 +39,8 @@ export class UserController {
   @Put(':id')
   @RequirePermissions('tenant:user:update')
   @ApiOperation({ summary: '编辑员工' })
-  update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.update(id, body, user);
+  update(@Param('id') id: string, @Body() dto: UpdateUserDto, @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, dto, user);
   }
 
   @Put(':id/status')

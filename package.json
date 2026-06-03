@@ -2,7 +2,7 @@
   "name": "car-shop-cloud",
   "version": "0.1.0",
   "private": true,
-  "description": "\u8f66\u5e97\u4e91\u7ba1\u5bb6 - SaaS \u591a\u5546\u6237\u6c7d\u670d\u95e8\u5e97\u7ba1\u7406\u7cfb\u7edf",
+  "description": "车店云管家 - SaaS 多商户汽服门店管理系统",
   "scripts": {
     "dev": "pnpm --filter @car/api run start:dev & pnpm --filter @car/web run dev",
     "dev:api": "pnpm --filter @car/api run start:dev",
@@ -27,5 +27,8 @@
       "@prisma/engines",
       "@nestjs/core"
     ]
+  },
+  "devDependencies": {
+    "puppeteer": "^25.1.0"
   }
 }

@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CustomerService } from './customer.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { UpdateCustomerDto } from './dto/customer.dto';
 
 @ApiTags('customers')
 @ApiBearerAuth()
@@ -45,7 +46,7 @@ export class CustomerController {
   @Put(':id')
   @RequirePermissions('tenant:customer:update')
   @ApiOperation({ summary: '编辑客户' })
-  update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.update(id, body, user);
+  update(@Param('id') id: string, @Body() dto: UpdateCustomerDto, @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, dto, user);
   }
 }

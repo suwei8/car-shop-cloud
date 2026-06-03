@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PartService } from './part.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { CreatePartDto, UpdatePartDto } from './dto/part.dto';
 
 @ApiTags('parts')
 @ApiBearerAuth()
@@ -31,15 +32,15 @@ export class PartController {
   @Post()
   @RequirePermissions('tenant:inventory:manage')
   @ApiOperation({ summary: '创建配件' })
-  create(@Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.create(body, user);
+  create(@Body() dto: CreatePartDto, @CurrentUser() user: JwtPayload) {
+    return this.service.create(dto, user);
   }
 
   @Put(':id')
   @RequirePermissions('tenant:inventory:manage')
   @ApiOperation({ summary: '编辑配件' })
-  update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.update(id, body, user);
+  update(@Param('id') id: string, @Body() dto: UpdatePartDto, @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, dto, user);
   }
 
   @Delete(':id')

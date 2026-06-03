@@ -38,7 +38,7 @@ export class DispatchController {
   @Post()
   @RequirePermissions('tenant:workorder:update')
   @ApiOperation({ summary: '创建派工' })
-  create(@Body() body: { workOrderId: string; technicianId: string; itemIds?: string[]; remark?: string }, @CurrentUser() user: JwtPayload) {
+  create(@Body() body: { workOrderId: string; technicianId: string; itemIds?: string[]; remark?: string; workPlace?: string; team?: string; assistantIds?: string }, @CurrentUser() user: JwtPayload) {
     return this.service.create(body, user);
   }
 
@@ -61,5 +61,16 @@ export class DispatchController {
   @ApiOperation({ summary: '完工' })
   complete(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.service.complete(id, user);
+  }
+
+  @Post(':id/photos')
+  @RequirePermissions('tenant:workorder:update')
+  @ApiOperation({ summary: '上传施工照片并联动车间状态' })
+  uploadPhoto(
+    @Param('id') id: string,
+    @Body() body: { fileUrl: string; originalName?: string },
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.service.uploadPhoto(id, body, user);
   }
 }

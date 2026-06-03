@@ -50,7 +50,7 @@ export class RoleService {
 
     return this.prisma.$transaction(async (tx) => {
       await tx.role.update({
-        where: { id },
+        where: { id, tenantId: user.tenantId! },
         data: { name: data.name, description: data.description },
       });
 
@@ -73,6 +73,6 @@ export class RoleService {
   async remove(id: string, user: JwtPayload) {
     const role = await this.findOne(id, user);
     if (role.isBuiltIn) throw new ForbiddenException('内置角色不可删除');
-    return this.prisma.role.delete({ where: { id } });
+    return this.prisma.role.delete({ where: { id, tenantId: user.tenantId! } });
   }
 }

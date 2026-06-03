@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ServiceItemService } from './service-item.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { CreateServiceItemDto, UpdateServiceItemDto } from './dto/service-item.dto';
 
 @ApiTags('service-items')
 @ApiBearerAuth()
@@ -31,15 +32,15 @@ export class ServiceItemController {
   @Post()
   @RequirePermissions('tenant:workorder:create')
   @ApiOperation({ summary: '创建服务项目' })
-  create(@Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.create(body, user);
+  create(@Body() dto: CreateServiceItemDto, @CurrentUser() user: JwtPayload) {
+    return this.service.create(dto, user);
   }
 
   @Put(':id')
   @RequirePermissions('tenant:workorder:update')
   @ApiOperation({ summary: '编辑服务项目' })
-  update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.update(id, body, user);
+  update(@Param('id') id: string, @Body() dto: UpdateServiceItemDto, @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, dto, user);
   }
 
   @Delete(':id')

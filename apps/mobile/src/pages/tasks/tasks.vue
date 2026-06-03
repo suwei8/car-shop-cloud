@@ -21,6 +21,10 @@
           <text class="plate">{{ task.workOrder?.vehiclePlateNo }}</text>
           <text class="type">{{ { repair: '维修', wash: '洗美', quick: '快单' }[task.workOrder?.orderType] }}</text>
         </view>
+        <view class="task-allocation-info" v-if="task.workPlace || task.team">
+          <text class="allocation-tag" v-if="task.workPlace">📍 {{ task.workPlace }}</text>
+          <text class="allocation-tag" v-if="task.team">👥 {{ task.team }}</text>
+        </view>
         <view class="card-footer">
           <text class="desc">{{ task.workOrder?.description || '无描述' }}</text>
         </view>
@@ -63,7 +67,18 @@ function goDetail(task: any) {
 }
 
 watch(status, fetchTasks);
-onMounted(fetchTasks);
+onMounted(() => {
+  const pages = getCurrentPages();
+  if (pages.length > 0) {
+    const page = pages[pages.length - 1] as any;
+    const opts = page.$page?.options || page.options || {};
+    if (opts.status) {
+      status.value = opts.status;
+      return; // Setting status.value will trigger watch -> fetchTasks
+    }
+  }
+  fetchTasks();
+});
 </script>
 
 <style scoped>
@@ -85,4 +100,8 @@ onMounted(fetchTasks);
 .type { font-size: 24rpx; color: #999; }
 .card-footer { font-size: 24rpx; color: #666; }
 .empty { text-align: center; padding: 100rpx 0; color: #999; }
+
+/* 派工工位与班组样式 */
+.task-allocation-info { display: flex; gap: 16rpx; margin-bottom: 12rpx; flex-wrap: wrap; }
+.allocation-tag { font-size: 22rpx; background: #f2f6fc; color: #409eff; padding: 4rpx 12rpx; border-radius: 6rpx; border: 1rpx solid #dcdfe6; }
 </style>

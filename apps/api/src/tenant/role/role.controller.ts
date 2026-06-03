@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { RoleService } from './role.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { UpdateRoleDto } from './dto/role.dto';
 
 @ApiTags('roles')
 @ApiBearerAuth()
@@ -38,8 +39,8 @@ export class RoleController {
   @Put(':id')
   @RequirePermissions('tenant:role:manage')
   @ApiOperation({ summary: '编辑角色' })
-  update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.update(id, body, user);
+  update(@Param('id') id: string, @Body() dto: UpdateRoleDto, @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, dto, user);
   }
 
   @Delete(':id')

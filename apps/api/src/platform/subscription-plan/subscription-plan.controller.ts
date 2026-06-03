@@ -5,6 +5,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SubscriptionPlanService } from './subscription-plan.service';
 import { Roles, RequirePermissions } from '../../common/decorators';
+import { CreateSubscriptionPlanDto, UpdateSubscriptionPlanDto } from './dto/subscription-plan.dto';
 
 @ApiTags('platform/subscription-plans')
 @ApiBearerAuth()
@@ -30,15 +31,15 @@ export class SubscriptionPlanController {
   @Post()
   @RequirePermissions('platform:plan:manage')
   @ApiOperation({ summary: '创建套餐' })
-  create(@Body() body: any) {
-    return this.service.create(body);
+  create(@Body() dto: CreateSubscriptionPlanDto) {
+    return this.service.create(dto);
   }
 
   @Put(':id')
   @RequirePermissions('platform:plan:manage')
   @ApiOperation({ summary: '编辑套餐' })
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.service.update(id, body);
+  update(@Param('id') id: string, @Body() dto: UpdateSubscriptionPlanDto) {
+    return this.service.update(id, dto);
   }
 
   @Post(':id/subscribe/:tenantId')

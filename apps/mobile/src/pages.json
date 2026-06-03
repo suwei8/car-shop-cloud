@@ -27,7 +27,31 @@
     {
       "path": "pages/member/card",
       "style": {
-        "navigationBarTitleText": "我的储值卡"
+        "navigationBarTitleText": "储值卡管理"
+      }
+    },
+    {
+      "path": "pages/search/search",
+      "style": {
+        "navigationBarTitleText": "查车档案"
+      }
+    },
+    {
+      "path": "pages/workorder/create",
+      "style": {
+        "navigationBarTitleText": "接待开单"
+      }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationBarTitleText": "个人中心"
+      }
+    },
+    {
+      "path": "pages/notifications/notifications",
+      "style": {
+        "navigationBarTitleText": "消息通知"
       }
     }
   ],

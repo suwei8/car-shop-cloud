@@ -35,15 +35,13 @@ export class StockService {
     shopId: string; supplierId?: string; remark?: string;
     items: { partId: string; quantity: number; unitPrice: number }[];
   }, user: JwtPayload) {
-    const billNo = await this.generateBillNo(user.tenantId!, 'IN');
-
-    // 获取默认仓库
     const warehouse = await this.prisma.warehouse.findFirst({
       where: { tenantId: user.tenantId!, shopId: data.shopId, isDefault: true },
     });
     if (!warehouse) throw new NotFoundException('未找到默认仓库，请先创建仓库');
 
     return this.prisma.$transaction(async (tx) => {
+      const billNo = await this.generateBillNo(user.tenantId!, 'IN', tx);
       const bill = await tx.stockBill.create({
         data: {
           tenantId: user.tenantId!,
@@ -111,9 +109,8 @@ export class StockService {
     });
     if (!warehouse) throw new NotFoundException('未找到默认仓库');
 
-    const billNo = await this.generateBillNo(user.tenantId!, 'OUT');
-
     return this.prisma.$transaction(async (tx) => {
+      const billNo = await this.generateBillNo(user.tenantId!, 'OUT', tx);
       const bill = await tx.stockBill.create({
         data: {
           tenantId: user.tenantId!,
@@ -219,15 +216,14 @@ export class StockService {
     return { items, total, page, pageSize };
   }
 
-  private async generateBillNo(tenantId: string, prefix: string): Promise<string> {
+  private async generateBillNo(tenantId: string, prefix: string, tx: any): Promise<string> {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-    const count = await this.prisma.stockBill.count({
-      where: {
-        tenantId,
-        billNo: { startsWith: `${prefix}${dateStr}` },
-      },
+    const seq = await tx.sequence.upsert({
+      where: { tenantId_key_date: { tenantId, key: `stock_bill_${prefix}`, date: dateStr } },
+      update: { value: { increment: 1 } },
+      create: { tenantId, key: `stock_bill_${prefix}`, date: dateStr, value: 1 },
     });
-    return `${prefix}${dateStr}${String(count + 1).padStart(4, '0')}`;
+    return `${prefix}${dateStr}${String(seq.value).padStart(4, '0')}`;
   }
 }

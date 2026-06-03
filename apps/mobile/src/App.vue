@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { onLaunch } from '@dcloudio/uni-app';
+import { setupAuthGuard, checkLaunchAuth } from './utils/auth-guard';
+
+setupAuthGuard();
 
 onLaunch(() => {
-  console.log('App Launch');
+  checkLaunchAuth();
 });
 </script>
 

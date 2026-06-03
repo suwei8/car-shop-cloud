@@ -17,7 +17,7 @@ export class SettlementController {
   @Get()
   @RequirePermissions('tenant:settlement:view')
   @ApiOperation({ summary: '结算单列表' })
-  findAll(@CurrentUser() user: JwtPayload, @Query() query: { page?: number; pageSize?: number; shopId?: string; status?: string }) {
+  findAll(@CurrentUser() user: JwtPayload, @Query() query: { page?: number; pageSize?: number; shopId?: string; status?: string; workOrderId?: string }) {
     return this.service.findAll(user, query);
   }
 

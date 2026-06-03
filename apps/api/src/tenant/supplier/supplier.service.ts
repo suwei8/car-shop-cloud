@@ -39,13 +39,13 @@ export class SupplierService {
 
   async update(id: string, data: { name?: string; contactName?: string; phone?: string; address?: string; remark?: string }, user: JwtPayload) {
     await this.findOne(id, user);
-    return this.prisma.supplier.update({ where: { id }, data });
+    return this.prisma.supplier.update({ where: { id, tenantId: user.tenantId! }, data });
   }
 
   async remove(id: string, user: JwtPayload) {
     await this.findOne(id, user);
     return this.prisma.supplier.update({
-      where: { id },
+      where: { id, tenantId: user.tenantId! },
       data: { status: 'inactive' },
     });
   }

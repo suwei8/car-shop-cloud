@@ -117,11 +117,11 @@ export class UserService {
       if (data.phone) updateData.phone = data.phone;
       if (data.password) updateData.passwordHash = await bcrypt.hash(data.password, 10);
 
-      await tx.user.update({ where: { id }, data: updateData });
+      await tx.user.update({ where: { id, tenantId: user.tenantId! }, data: updateData });
 
       if (data.shopId || data.position !== undefined) {
         await tx.employee.update({
-          where: { userId: id },
+          where: { userId: id, tenantId: user.tenantId! },
           data: {
             ...(data.shopId && { shopId: data.shopId }),
             ...(data.position !== undefined && { position: data.position }),
@@ -142,6 +142,6 @@ export class UserService {
 
   async updateStatus(id: string, status: string, user: JwtPayload) {
     await this.findOne(id, user);
-    return this.prisma.user.update({ where: { id }, data: { status } });
+    return this.prisma.user.update({ where: { id, tenantId: user.tenantId! }, data: { status } });
   }
 }

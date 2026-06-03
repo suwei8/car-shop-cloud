@@ -48,7 +48,7 @@ export class InspectionService {
     });
     if (!record) throw new NotFoundException('检查记录不存在');
 
-    return this.prisma.inspectionRecord.update({ where: { id }, data });
+    return this.prisma.inspectionRecord.update({ where: { id, tenantId: user.tenantId! }, data });
   }
 
   async remove(id: string, user: JwtPayload) {
@@ -57,6 +57,6 @@ export class InspectionService {
     });
     if (!record) throw new NotFoundException('检查记录不存在');
 
-    return this.prisma.inspectionRecord.delete({ where: { id } });
+    return this.prisma.inspectionRecord.delete({ where: { id, tenantId: user.tenantId! } });
   }
 }

@@ -42,6 +42,6 @@ export class ShopService {
 
   async update(id: string, data: { name?: string; address?: string; phone?: string; status?: string }, user: JwtPayload) {
     await this.findOne(id, user);
-    return this.prisma.shop.update({ where: { id }, data });
+    return this.prisma.shop.update({ where: { id, tenantId: user.tenantId! }, data });
   }
 }

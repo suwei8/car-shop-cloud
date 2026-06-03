@@ -16,10 +16,6 @@
           </el-button>
         </el-form-item>
       </el-form>
-      <div class="demo-hint">
-        <p>平台管理员: 13800000000 / admin123456</p>
-        <p>演示商户管理员: 13900000001 / admin123456</p>
-      </div>
     </div>
   </div>
 </template>
@@ -81,15 +77,5 @@ async function handleLogin() {
   color: #909399;
   margin-bottom: 30px;
   font-size: 14px;
-}
-.demo-hint {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #eee;
-  font-size: 12px;
-  color: #909399;
-}
-.demo-hint p {
-  margin: 4px 0;
 }
 </style>

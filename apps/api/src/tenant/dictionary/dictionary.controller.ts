@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DictionaryService } from './dictionary.service';
 import { CurrentUser, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { UpdateDictionaryDto } from './dto/dictionary.dto';
 
 @ApiTags('dictionaries')
 @ApiBearerAuth()
@@ -28,8 +29,8 @@ export class DictionaryController {
 
   @Put(':id')
   @ApiOperation({ summary: '编辑字典项' })
-  update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.update(id, body, user);
+  update(@Param('id') id: string, @Body() dto: UpdateDictionaryDto, @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, dto, user);
   }
 
   @Delete(':id')

@@ -26,7 +26,7 @@ export class DictionaryService {
       where: { id, tenantId: user.tenantId! },
     });
     if (!dict) throw new NotFoundException('字典项不存在');
-    return this.prisma.dictionary.update({ where: { id }, data });
+    return this.prisma.dictionary.update({ where: { id, tenantId: user.tenantId! }, data });
   }
 
   async remove(id: string, user: JwtPayload) {
@@ -34,6 +34,6 @@ export class DictionaryService {
       where: { id, tenantId: user.tenantId! },
     });
     if (!dict) throw new NotFoundException('字典项不存在');
-    return this.prisma.dictionary.delete({ where: { id } });
+    return this.prisma.dictionary.delete({ where: { id, tenantId: user.tenantId! } });
   }
 }

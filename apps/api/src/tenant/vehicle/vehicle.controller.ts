@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { VehicleService } from './vehicle.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { CreateVehicleDto, UpdateVehicleDto } from './dto/vehicle.dto';
 
 @ApiTags('vehicles')
 @ApiBearerAuth()
@@ -35,6 +36,13 @@ export class VehicleController {
     return this.service.getModelLibrary(user);
   }
 
+  @Get('brand-library')
+  @RequirePermissions('tenant:vehicle:view')
+  @ApiOperation({ summary: '品牌车系库（静态车型库数据）' })
+  getBrandLibrary() {
+    return this.service.getBrandLibrary();
+  }
+
   @Get(':id')
   @RequirePermissions('tenant:vehicle:view')
   @ApiOperation({ summary: '车辆详情' })
@@ -45,14 +53,14 @@ export class VehicleController {
   @Post()
   @RequirePermissions('tenant:vehicle:create')
   @ApiOperation({ summary: '创建车辆' })
-  create(@Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.create(body, user);
+  create(@Body() dto: CreateVehicleDto, @CurrentUser() user: JwtPayload) {
+    return this.service.create(dto, user);
   }
 
   @Put(':id')
   @RequirePermissions('tenant:vehicle:update')
   @ApiOperation({ summary: '编辑车辆' })
-  update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.update(id, body, user);
+  update(@Param('id') id: string, @Body() dto: UpdateVehicleDto, @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, dto, user);
   }
 }

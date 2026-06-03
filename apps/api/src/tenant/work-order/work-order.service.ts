@@ -6,8 +6,8 @@ import { JwtPayload } from '@car/shared';
 export class WorkOrderService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(user: JwtPayload, query: { page?: number; pageSize?: number; status?: string; shopId?: string; orderType?: string }) {
-    const { page: _p = 1, pageSize: _ps = 20, status, shopId, orderType } = query;
+  async findAll(user: JwtPayload, query: { page?: number; pageSize?: number; status?: string; shopId?: string; orderType?: string; customerId?: string; vehicleId?: string }) {
+    const { page: _p = 1, pageSize: _ps = 20, status, shopId, orderType, customerId, vehicleId } = query;
     const page = Number(_p) || 1;
     const pageSize = Number(_ps) || 20;
     const where: any = { tenantId: user.tenantId! };
@@ -15,6 +15,8 @@ export class WorkOrderService {
     if (status) where.status = status;
     if (shopId) where.shopId = shopId;
     if (orderType) where.orderType = orderType;
+    if (customerId) where.customerId = customerId;
+    if (vehicleId) where.vehicleId = vehicleId;
 
     const [items, total] = await Promise.all([
       this.prisma.workOrder.findMany({
@@ -52,14 +54,13 @@ export class WorkOrderService {
   async create(data: {
     shopId: string; orderType: string; customerId: string; vehicleId: string;
     advisorId?: string; description?: string; remark?: string;
+    expectDate?: string | Date;
     items?: { serviceItemId?: string; itemType: string; name: string; quantity: number; unit?: string; unitPrice: number; technicianId?: string }[];
   }, user: JwtPayload) {
     const vehicle = await this.prisma.vehicle.findFirst({
       where: { id: data.vehicleId, tenantId: user.tenantId! },
     });
     if (!vehicle) throw new NotFoundException('车辆不存在');
-
-    const orderNo = await this.generateOrderNo(user.tenantId!);
 
     const items = (data.items || []).map(item => {
       const isPart = item.itemType === 'part';
@@ -75,34 +76,39 @@ export class WorkOrderService {
 
     const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
 
-    return this.prisma.workOrder.create({
-      data: {
-        tenantId: user.tenantId!,
-        shopId: data.shopId,
-        orderNo,
-        orderType: data.orderType,
-        customerId: data.customerId,
-        vehicleId: data.vehicleId,
-        vehiclePlateNo: vehicle.plateNo,
-        advisorId: data.advisorId,
-        description: data.description,
-        remark: data.remark,
-        totalAmount,
-        payableAmount: totalAmount,
-        items: { create: items },
-      },
-      include: {
-        customer: true,
-        vehicle: true,
-        items: true,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const orderNo = await this.generateOrderNo(user.tenantId!, tx);
+
+      return tx.workOrder.create({
+        data: {
+          tenantId: user.tenantId!,
+          shopId: data.shopId,
+          orderNo,
+          orderType: data.orderType,
+          customerId: data.customerId,
+          vehicleId: data.vehicleId,
+          vehiclePlateNo: vehicle.plateNo,
+          advisorId: data.advisorId,
+          description: data.description,
+          remark: data.remark,
+          expectDate: data.expectDate ? new Date(data.expectDate) : null,
+          totalAmount,
+          payableAmount: totalAmount,
+          items: { create: items },
+        },
+        include: {
+          customer: true,
+          vehicle: true,
+          items: true,
+        },
+      });
     });
   }
 
   async updateStatus(id: string, status: string, user: JwtPayload) {
     await this.findOne(id, user);
     return this.prisma.workOrder.update({
-      where: { id },
+      where: { id, tenantId: user.tenantId! },
       data: { status },
     });
   }
@@ -125,32 +131,31 @@ export class WorkOrderService {
       };
     });
 
-    await this.prisma.workOrderItem.createMany({ data: newItems });
-
     const addedAmount = newItems.reduce((sum, item) => sum + item.amount, 0);
 
-    await this.prisma.workOrder.update({
-      where: { id: orderId },
-      data: {
-        totalAmount: { increment: addedAmount },
-        payableAmount: { increment: addedAmount },
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.workOrderItem.createMany({ data: newItems });
 
-    return this.findOne(orderId, user);
+      await tx.workOrder.update({
+        where: { id: orderId, tenantId: user.tenantId! },
+        data: {
+          totalAmount: { increment: addedAmount },
+          payableAmount: { increment: addedAmount },
+        },
+      });
+
+      return this.findOne(orderId, user);
+    });
   }
 
-  private async generateOrderNo(tenantId: string): Promise<string> {
+  private async generateOrderNo(tenantId: string, tx: any): Promise<string> {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-    const count = await this.prisma.workOrder.count({
-      where: {
-        tenantId,
-        createdAt: {
-          gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
-        },
-      },
+    const seq = await tx.sequence.upsert({
+      where: { tenantId_key_date: { tenantId, key: 'work_order', date: dateStr } },
+      update: { value: { increment: 1 } },
+      create: { tenantId, key: 'work_order', date: dateStr, value: 1 },
     });
-    return `WO${dateStr}${String(count + 1).padStart(4, '0')}`;
+    return `WO${dateStr}${String(seq.value).padStart(4, '0')}`;
   }
 }

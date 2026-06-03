@@ -55,7 +55,7 @@ export class CustomerService {
 
   async update(id: string, data: { name?: string; phone?: string; gender?: string; email?: string; address?: string; remark?: string }, user: JwtPayload) {
     await this.findOne(id, user);
-    return this.prisma.customer.update({ where: { id }, data });
+    return this.prisma.customer.update({ where: { id, tenantId: user.tenantId! }, data });
   }
 
   async search(user: JwtPayload, keyword: string) {

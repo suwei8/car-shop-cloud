@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PackageCardService } from './package-card.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { CreatePackageCardDto } from './dto/package-card.dto';
 
 @ApiTags('package-cards')
 @ApiBearerAuth()
@@ -38,8 +39,8 @@ export class PackageCardController {
   @Post()
   @RequirePermissions('tenant:member:manage')
   @ApiOperation({ summary: '售卡' })
-  create(@Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.create(body, user);
+  create(@Body() dto: CreatePackageCardDto, @CurrentUser() user: JwtPayload) {
+    return this.service.create(dto, user);
   }
 
   @Post(':id/consume')

@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ShopService } from './shop.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { UpdateShopDto } from './dto/shop.dto';
 
 @ApiTags('shops')
 @ApiBearerAuth()
@@ -38,7 +39,7 @@ export class ShopController {
   @Put(':id')
   @RequirePermissions('tenant:shop:update')
   @ApiOperation({ summary: '编辑门店' })
-  update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.update(id, body, user);
+  update(@Param('id') id: string, @Body() dto: UpdateShopDto, @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, dto, user);
   }
 }

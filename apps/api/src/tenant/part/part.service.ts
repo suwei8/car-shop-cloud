@@ -68,7 +68,7 @@ export class PartService {
   }, user: JwtPayload) {
     await this.findOne(id, user);
     return this.prisma.part.update({
-      where: { id },
+      where: { id, tenantId: user.tenantId! },
       data,
       include: { supplier: true },
     });
@@ -77,7 +77,7 @@ export class PartService {
   async remove(id: string, user: JwtPayload) {
     await this.findOne(id, user);
     return this.prisma.part.update({
-      where: { id },
+      where: { id, tenantId: user.tenantId! },
       data: { status: 'inactive' },
     });
   }

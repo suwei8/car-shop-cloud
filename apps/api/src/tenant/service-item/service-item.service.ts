@@ -43,13 +43,13 @@ export class ServiceItemService {
     unitPrice?: number; description?: string;
   }, user: JwtPayload) {
     await this.findOne(id, user);
-    return this.prisma.serviceItem.update({ where: { id }, data });
+    return this.prisma.serviceItem.update({ where: { id, tenantId: user.tenantId! }, data });
   }
 
   async remove(id: string, user: JwtPayload) {
     await this.findOne(id, user);
     return this.prisma.serviceItem.update({
-      where: { id },
+      where: { id, tenantId: user.tenantId! },
       data: { status: 'inactive' },
     });
   }

@@ -1,7 +1,7 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="title">我的储值卡</text>
+      <text class="title">储值卡管理</text>
     </view>
 
     <view class="list">
@@ -29,18 +29,17 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useAuthStore } from '../../stores/auth';
 import { request } from '../../utils/request';
 
+const auth = useAuthStore();
 const cards = ref<any[]>([]);
 
 onMounted(async () => {
-  const token = uni.getStorageSync('accessToken');
-  const userInfo = JSON.parse(uni.getStorageSync('userInfo') || '{}');
-
   const res: any = await request({
-    url: `/api/stored-value-cards?customerId=${userInfo.id || ''}`,
+    url: '/api/stored-value-cards',
     method: 'GET',
-    header: { Authorization: `Bearer ${token}` },
+    header: { Authorization: `Bearer ${auth.token}` },
   });
   if (res.data?.code === 0) {
     cards.value = res.data.data.items;

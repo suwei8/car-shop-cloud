@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SupplierService } from './supplier.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { CreateSupplierDto, UpdateSupplierDto } from './dto/supplier.dto';
 
 @ApiTags('suppliers')
 @ApiBearerAuth()
@@ -31,15 +32,15 @@ export class SupplierController {
   @Post()
   @RequirePermissions('tenant:inventory:manage')
   @ApiOperation({ summary: '创建供货商' })
-  create(@Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.create(body, user);
+  create(@Body() dto: CreateSupplierDto, @CurrentUser() user: JwtPayload) {
+    return this.service.create(dto, user);
   }
 
   @Put(':id')
   @RequirePermissions('tenant:inventory:manage')
   @ApiOperation({ summary: '编辑供货商' })
-  update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: JwtPayload) {
-    return this.service.update(id, body, user);
+  update(@Param('id') id: string, @Body() dto: UpdateSupplierDto, @CurrentUser() user: JwtPayload) {
+    return this.service.update(id, dto, user);
   }
 
   @Delete(':id')

@@ -53,6 +53,7 @@ export class DispatchService {
 
   async create(data: {
     workOrderId: string; technicianId: string; itemIds?: string[]; remark?: string;
+    workPlace?: string; team?: string; assistantIds?: string;
   }, user: JwtPayload) {
     const workOrder = await this.prisma.workOrder.findFirst({
       where: { id: data.workOrderId, tenantId: user.tenantId! },
@@ -62,37 +63,43 @@ export class DispatchService {
       throw new ForbiddenException('当前工单状态不允许派工');
     }
 
-    const task = await this.prisma.dispatchTask.create({
-      data: {
-        tenantId: user.tenantId!,
-        workOrderId: data.workOrderId,
-        technicianId: data.technicianId,
-        itemIds: data.itemIds ? JSON.stringify(data.itemIds) : null,
-        remark: data.remark,
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const task = await tx.dispatchTask.create({
+        data: {
+          tenantId: user.tenantId!,
+          workOrderId: data.workOrderId,
+          technicianId: data.technicianId,
+          itemIds: data.itemIds ? JSON.stringify(data.itemIds) : null,
+          workPlace: data.workPlace,
+          team: data.team,
+          assistantIds: data.assistantIds,
+          remark: data.remark,
+        },
+      });
 
-    // 更新工单状态为派工中
-    await this.prisma.workOrder.update({
-      where: { id: data.workOrderId },
-      data: { status: 'dispatching' },
-    });
+      await tx.workOrder.update({
+        where: { id: data.workOrderId, tenantId: user.tenantId! },
+        data: { status: 'dispatching' },
+      });
 
-    return task;
+      return task;
+    });
   }
 
   async start(id: string, user: JwtPayload) {
     const task = await this.findOne(id, user);
     if (task.status !== 'pending') throw new ForbiddenException('只能开始待处理的任务');
 
-    await this.prisma.workOrder.update({
-      where: { id: task.workOrderId },
-      data: { status: 'in_progress' },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.workOrder.update({
+        where: { id: task.workOrderId, tenantId: user.tenantId! },
+        data: { status: 'in_progress' },
+      });
 
-    return this.prisma.dispatchTask.update({
-      where: { id },
-      data: { status: 'in_progress', startAt: new Date() },
+      return tx.dispatchTask.update({
+        where: { id, tenantId: user.tenantId! },
+        data: { status: 'in_progress', startAt: new Date() },
+      });
     });
   }
 
@@ -112,25 +119,26 @@ export class DispatchService {
       throw new ForbiddenException('只能完成进行中或已暂停的任务');
     }
 
-    // 检查是否所有派工任务都已完成
-    const allTasks = await this.prisma.dispatchTask.findMany({
-      where: { workOrderId: task.workOrderId, tenantId: user.tenantId! },
-    });
-
-    const updatedTask = await this.prisma.dispatchTask.update({
-      where: { id },
-      data: { status: 'completed', endAt: new Date() },
-    });
-
-    const allCompleted = allTasks.every(t => t.id === id || t.status === 'completed');
-    if (allCompleted) {
-      await this.prisma.workOrder.update({
-        where: { id: task.workOrderId },
-        data: { status: 'completed' },
+    return this.prisma.$transaction(async (tx) => {
+      const allTasks = await tx.dispatchTask.findMany({
+        where: { workOrderId: task.workOrderId, tenantId: user.tenantId! },
       });
-    }
 
-    return updatedTask;
+      const updatedTask = await tx.dispatchTask.update({
+        where: { id, tenantId: user.tenantId! },
+        data: { status: 'completed', endAt: new Date() },
+      });
+
+      const allCompleted = allTasks.every(t => t.id === id || t.status === 'completed');
+      if (allCompleted) {
+        await tx.workOrder.update({
+          where: { id: task.workOrderId, tenantId: user.tenantId! },
+          data: { status: 'completed' },
+        });
+      }
+
+      return updatedTask;
+    });
   }
 
   async getMyTasks(user: JwtPayload, query: { status?: string }) {
@@ -150,4 +158,32 @@ export class DispatchService {
       },
     });
   }
+
+  async uploadPhoto(id: string, data: { fileUrl: string; originalName?: string }, user: JwtPayload) {
+    const task = await this.findOne(id, user);
+
+    // 1. 创建文件关联记录
+    await this.prisma.file.create({
+      data: {
+        tenantId: user.tenantId!,
+        uploadedBy: user.sub,
+        originalName: data.originalName || 'construction_photo.jpg',
+        fileName: data.fileUrl.split('/').pop() || 'construction_photo.jpg',
+        mimeType: 'image/jpeg',
+        size: 0,
+        url: data.fileUrl,
+        source: 'mobile',
+        businessType: 'dispatch-task',
+        businessId: id,
+      },
+    });
+
+    // 2. 联动车间状态：如果派工状态为待处理 (pending)，上传照片即视为开工
+    if (task.status === 'pending') {
+      await this.start(id, user);
+    }
+
+    return { success: true };
+  }
 }
+
