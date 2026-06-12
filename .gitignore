@@ -30,6 +30,10 @@ pgdata/
 redisdata/
 miniodata/
 
+# Backup artifacts
+/var/backups/carshop/
+*.dump
+
 # OS
 Thumbs.db
 .DS_Store

@@ -1,0 +1,18 @@
+# =============================================================================
+# 车店云管家 — 数据库备份 crontab 配置示例
+#
+# 使用方法：
+#   1. 复制以下内容到 crontab -e
+#   2. 修改路径和环境变量为实际值
+# =============================================================================
+
+# 环境变量路径（备份脚本需要读取 .env）
+BACKUP_ENV=/home/sw/dev_root/car/.env
+BACKUP_SCRIPT=/home/sw/dev_root/car/scripts/backup/pg-backup.sh
+BACKUP_LOG=/var/backups/carshop/cron.log
+
+# 每日 03:30 执行备份
+30 3 * * * cd /home/sw/dev_root/car && set -a && source "$BACKUP_ENV" && set +a && "$BACKUP_SCRIPT" >> "$BACKUP_LOG" 2>&1
+
+# 可选：每周日凌晨 4 点清理超过 30 天的本地备份（pg-backup.sh 已内置清理逻辑，此行可选）
+# 0 4 * * 0 find /var/backups/carshop -name "carshop_*.dump" -mtime +30 -delete

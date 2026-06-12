@@ -30,7 +30,8 @@ import { ReportModule } from './tenant/report/report.module';
 import { PrintModule } from './tenant/print/print.module';
 import { FileModule } from './file/file.module';
 import { AuditModule } from './audit/audit.module';
-import { RolesGuard, PermissionsGuard, TenantGuard } from './common/guards';
+import { HealthModule } from './health/health.module';
+import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard } from './common/guards';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { RolesGuard, PermissionsGuard, TenantGuard } from './common/guards';
     AuthModule,
     AuditModule,
     FileModule,
+    HealthModule,
     // Platform modules
     PlatformTenantModule,
     PlatformSubscriptionPlanModule,
@@ -68,6 +70,7 @@ import { RolesGuard, PermissionsGuard, TenantGuard } from './common/guards';
     PrintModule,
   ],
   providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
