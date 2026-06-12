@@ -53,9 +53,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import api from '../../utils/api';
+import { apiGet } from '../../utils/api';
+import type { Payment } from '../../types/models';
+import type { PaginatedData } from '../../types/api';
 
-const list = ref<any[]>([]);
+const list = ref<(Payment & { settlement?: { settleNo: string; workOrderId: string } })[]>([]);
 const loading = ref(false);
 const page = ref(1);
 const pageSize = 20;
@@ -72,13 +74,13 @@ function payMethodLabel(m: string) { return payMethodMap[m] || m; }
 async function fetchList() {
   loading.value = true;
   try {
-    const params: any = { page: page.value, pageSize };
+    const params: Record<string, unknown> = { page: page.value, pageSize };
     if (payMethod.value) params.payMethod = payMethod.value;
     if (dateRange.value?.length === 2) {
       params.startDate = dateRange.value[0];
       params.endDate = dateRange.value[1];
     }
-    const res: any = await api.get('/settlements/payments', { params });
+    const res = await apiGet<PaginatedData<Payment & { settlement?: { settleNo: string; workOrderId: string } }>>('/settlements/payments', { params });
     list.value = res.items;
     total.value = res.total;
   } finally {

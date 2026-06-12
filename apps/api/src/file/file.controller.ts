@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { FileService } from './file.service';
 import { CurrentUser, TenantRequired } from '../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { GetUploadUrlDto } from './dto/file.dto';
 
 @ApiTags('files')
 @ApiBearerAuth()
@@ -15,9 +16,9 @@ export class FileController {
   @ApiOperation({ summary: '获取文件上传预签名 URL' })
   getUploadUrl(
     @CurrentUser() user: JwtPayload,
-    @Body() body: { originalName: string; mimeType: string; size: number; source?: string; businessType?: string; businessId?: string },
+    @Body() dto: GetUploadUrlDto,
   ) {
-    return this.service.getUploadUrl(user, body);
+    return this.service.getUploadUrl(user, dto);
   }
 
   @Get()

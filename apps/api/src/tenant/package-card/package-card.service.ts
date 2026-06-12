@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { JwtPayload } from '@car/shared';
 
 @Injectable()
@@ -152,6 +153,66 @@ export class PackageCardService {
 
       return updatedItem;
     });
+  }
+
+  /**
+   * 事务内核销套餐卡次数（供结算服务调用）
+   */
+  async redeem(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    cardId: string,
+    itemId: string,
+    quantity: number,
+    relatedType: string,
+    relatedId: string,
+    operatorId: string,
+    shopId?: string,
+    vehicleId?: string,
+  ): Promise<{ amount: number }> {
+    const card = await tx.packageCard.findFirst({
+      where: { id: cardId, tenantId },
+      include: { items: true },
+    });
+    if (!card) throw new NotFoundException('套餐卡不存在');
+    if (card.status !== 'active') throw new ForbiddenException('套餐卡状态异常');
+    const now = new Date();
+    if (now < card.startAt || now > card.endAt) throw new ForbiddenException('套餐卡已过期');
+
+    if (vehicleId && card.vehicleId && card.vehicleId !== vehicleId) {
+      throw new ForbiddenException('此套餐卡不适用于当前车辆');
+    }
+    if (shopId && card.shopIds) {
+      const shopIds: string[] = JSON.parse(card.shopIds);
+      if (!shopIds.includes(shopId)) {
+        throw new ForbiddenException('此套餐卡不适用于当前门店');
+      }
+    }
+
+    const item = card.items.find(i => i.id === itemId);
+    if (!item) throw new NotFoundException('套餐卡项目不存在');
+    if (Number(item.remainQty) < quantity) throw new ForbiddenException('套餐卡剩余次数不足');
+
+    const updatedItem = await tx.packageCardItem.update({
+      where: { id: item.id },
+      data: { remainQty: { decrement: quantity } },
+    });
+
+    await tx.packageCardTransaction.create({
+      data: {
+        tenantId,
+        cardId,
+        itemId: item.id,
+        type: 'consume',
+        quantity,
+        remainAfter: updatedItem.remainQty,
+        relatedType,
+        relatedId,
+        operatorId,
+      },
+    });
+
+    return { amount: 0 };
   }
 
   // 流水查询

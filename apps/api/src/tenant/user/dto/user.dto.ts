@@ -1,5 +1,38 @@
-import { IsString, IsOptional, IsArray } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsArray, IsIn } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class CreateUserDto {
+  @ApiProperty()
+  @IsString()
+  name: string;
+
+  @ApiProperty()
+  @IsString()
+  phone: string;
+
+  @ApiProperty()
+  @IsString()
+  password: string;
+
+  @ApiProperty()
+  @IsString()
+  shopId: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  position?: string;
+
+  @ApiProperty()
+  @IsArray()
+  roleIds: string[];
+}
+
+export class UpdateUserStatusDto {
+  @ApiProperty({ enum: ['active', 'disabled'] })
+  @IsIn(['active', 'disabled'])
+  status: string;
+}
 
 export class UpdateUserDto {
   @ApiPropertyOptional()

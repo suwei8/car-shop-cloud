@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { PlatformTenantModule } from './platform/tenant/tenant.module';
 import { PlatformSubscriptionPlanModule } from './platform/subscription-plan/subscription-plan.module';
 import { PlatformFeatureFlagModule } from './platform/feature-flag/feature-flag.module';
+import { SubscriptionTaskModule } from './platform/subscription-task/subscription-task.module';
 import { ShopModule } from './tenant/shop/shop.module';
 import { UserModule } from './tenant/user/user.module';
 import { RoleModule } from './tenant/role/role.module';
@@ -31,11 +33,12 @@ import { PrintModule } from './tenant/print/print.module';
 import { FileModule } from './file/file.module';
 import { AuditModule } from './audit/audit.module';
 import { HealthModule } from './health/health.module';
-import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard } from './common/guards';
+import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard, SubscriptionGuard } from './common/guards';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     AuditModule,
@@ -45,6 +48,7 @@ import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard } from './commo
     PlatformTenantModule,
     PlatformSubscriptionPlanModule,
     PlatformFeatureFlagModule,
+    SubscriptionTaskModule,
     // Tenant modules
     ShopModule,
     UserModule,
@@ -72,6 +76,7 @@ import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard } from './commo
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
+    { provide: APP_GUARD, useClass: SubscriptionGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],

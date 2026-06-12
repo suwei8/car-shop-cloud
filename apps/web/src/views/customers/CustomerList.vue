@@ -86,11 +86,13 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import api from '../../utils/api';
+import { apiGet, apiPost, apiPut } from '../../utils/api';
 import { ElMessage } from 'element-plus';
+import type { Customer, Vehicle } from '../../types/models';
+import type { PaginatedData } from '../../types/api';
 import VehicleModelInput from '../../components/VehicleModelInput.vue';
 
-const list = ref<any[]>([]);
+const list = ref<(Customer & { vehicles?: Vehicle[] })[]>([]);
 const loading = ref(false);
 const page = ref(1);
 const pageSize = 20;
@@ -118,7 +120,7 @@ const vehicleRules = {
 async function fetchList() {
   loading.value = true;
   try {
-    const res: any = await api.get('/customers', { params: { page: page.value, pageSize, keyword: keyword.value || undefined } });
+    const res = await apiGet<PaginatedData<Customer & { vehicles?: Vehicle[] }>>('/customers', { page: page.value, pageSize, keyword: keyword.value || undefined });
     list.value = res.items;
     total.value = res.total;
   } finally {
@@ -126,7 +128,7 @@ async function fetchList() {
   }
 }
 
-function showDialog(row?: any) {
+function showDialog(row?: Customer & { vehicles?: Vehicle[] }) {
   if (row) {
     Object.assign(form, { id: row.id, name: row.name, phone: row.phone, gender: row.gender, remark: row.remark });
   } else {
@@ -135,7 +137,7 @@ function showDialog(row?: any) {
   dialogVisible.value = true;
 }
 
-function showVehicleDialog(row: any) {
+function showVehicleDialog(row: Customer) {
   selectedCustomerId.value = row.id;
   Object.assign(vehicleForm, { plateNo: '', model: '', color: '', vin: '' });
   vehicleDialogVisible.value = true;
@@ -146,9 +148,9 @@ async function handleSave() {
   saving.value = true;
   try {
     if (form.id) {
-      await api.put(`/customers/${form.id}`, form);
+      await apiPut(`/customers/${form.id}`, form);
     } else {
-      await api.post('/customers', form);
+      await apiPost('/customers', form);
     }
     ElMessage.success('保存成功');
     dialogVisible.value = false;
@@ -162,7 +164,7 @@ async function handleSaveVehicle() {
   await vehicleFormRef.value?.validate();
   saving.value = true;
   try {
-    await api.post('/vehicles', { ...vehicleForm, customerId: selectedCustomerId.value });
+    await apiPost('/vehicles', { ...vehicleForm, customerId: selectedCustomerId.value });
     ElMessage.success('车辆添加成功');
     vehicleDialogVisible.value = false;
     fetchList();

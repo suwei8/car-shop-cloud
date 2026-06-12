@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { Prisma } from '@prisma/client';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -26,6 +27,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
         typeof res === 'string'
           ? res
           : (res as any).message || exception.message;
+    } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+      switch (exception.code) {
+        case 'P2002':
+          status = HttpStatus.CONFLICT;
+          message = '数据已存在（唯一约束冲突）';
+          break;
+        case 'P2025':
+          status = HttpStatus.NOT_FOUND;
+          message = '记录不存在';
+          break;
+        default:
+          status = HttpStatus.INTERNAL_SERVER_ERROR;
+          message = '数据库操作失败';
+          this.logger.error(
+            `Prisma error [${exception.code}]: ${exception.message}`,
+            exception.stack,
+          );
+      }
     } else if (exception instanceof Error) {
       this.logger.error(`Unhandled exception: ${exception.message}`, exception.stack);
       if (process.env.NODE_ENV !== 'production') {

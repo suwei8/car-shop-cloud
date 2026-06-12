@@ -1,5 +1,5 @@
 import {
-  IsString, IsOptional, IsNumber, IsArray, IsEnum, ValidateNested,
+  IsString, IsOptional, IsNumber, IsArray, IsEnum, IsIn, ValidateNested, ArrayMinSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -45,6 +45,21 @@ export class CreateWorkOrderItemDto {
   @IsOptional()
   @IsString()
   remark?: string;
+}
+
+export class UpdateWorkOrderStatusDto {
+  @ApiProperty({ enum: ['draft', 'confirmed', 'dispatching', 'in_progress', 'completed', 'cancelled'] })
+  @IsIn(['draft', 'confirmed', 'dispatching', 'in_progress', 'completed', 'cancelled'])
+  status: string;
+}
+
+export class AddWorkOrderItemsDto {
+  @ApiProperty({ type: [CreateWorkOrderItemDto], minItems: 1 })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CreateWorkOrderItemDto)
+  items: CreateWorkOrderItemDto[];
 }
 
 export class CreateWorkOrderDto {

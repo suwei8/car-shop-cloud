@@ -6,7 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ShopService } from './shop.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
-import { UpdateShopDto } from './dto/shop.dto';
+import { CreateShopDto, UpdateShopDto } from './dto/shop.dto';
 
 @ApiTags('shops')
 @ApiBearerAuth()
@@ -32,8 +32,8 @@ export class ShopController {
   @Post()
   @RequirePermissions('tenant:shop:create')
   @ApiOperation({ summary: '创建门店' })
-  create(@Body() body: { name: string; address?: string; phone?: string }, @CurrentUser() user: JwtPayload) {
-    return this.service.create(body, user);
+  create(@Body() dto: CreateShopDto, @CurrentUser() user: JwtPayload) {
+    return this.service.create(dto, user);
   }
 
   @Put(':id')

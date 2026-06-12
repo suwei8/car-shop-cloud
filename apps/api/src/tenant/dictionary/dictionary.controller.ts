@@ -6,7 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DictionaryService } from './dictionary.service';
 import { CurrentUser, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
-import { UpdateDictionaryDto } from './dto/dictionary.dto';
+import { CreateDictionaryDto, UpdateDictionaryDto } from './dto/dictionary.dto';
 
 @ApiTags('dictionaries')
 @ApiBearerAuth()
@@ -23,8 +23,8 @@ export class DictionaryController {
 
   @Post()
   @ApiOperation({ summary: '创建字典项' })
-  create(@Body() body: { type: string; code: string; name: string; sort?: number }, @CurrentUser() user: JwtPayload) {
-    return this.service.create(body, user);
+  create(@Body() dto: CreateDictionaryDto, @CurrentUser() user: JwtPayload) {
+    return this.service.create(dto, user);
   }
 
   @Put(':id')

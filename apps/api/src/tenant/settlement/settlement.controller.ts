@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SettlementService } from './settlement.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { SettleDto } from './dto/settlement.dto';
 
 @ApiTags('settlements')
 @ApiBearerAuth()
@@ -38,8 +39,8 @@ export class SettlementController {
   @Post()
   @RequirePermissions('tenant:settlement:manage')
   @ApiOperation({ summary: '工单结算' })
-  settle(@Body() body: { workOrderId: string; discountAmount?: number; payments: any[] }, @CurrentUser() user: JwtPayload) {
-    return this.service.settle(body, user);
+  settle(@Body() dto: SettleDto, @CurrentUser() user: JwtPayload) {
+    return this.service.settle(dto, user);
   }
 
   @Post(':id/reverse')

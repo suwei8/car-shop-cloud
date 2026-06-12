@@ -35,8 +35,20 @@ export class SubscriptionPlanService {
     const endAt = new Date();
     endAt.setMonth(endAt.getMonth() + months);
 
-    return this.prisma.tenantSubscription.create({
-      data: { tenantId, planId, startAt, endAt, status: 'active' },
+    return this.prisma.$transaction(async (tx) => {
+      const sub = await tx.tenantSubscription.create({
+        data: { tenantId, planId, startAt, endAt, status: 'active' },
+      });
+
+      await tx.tenant.update({
+        where: { id: tenantId },
+        data: {
+          subscriptionStatus: 'active',
+          subscriptionEndAt: endAt,
+        },
+      });
+
+      return sub;
     });
   }
 }

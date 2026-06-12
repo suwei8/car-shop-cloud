@@ -71,9 +71,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import api from '../../utils/api';
+import { apiGet } from '../../utils/api';
+import type { WorkOrder } from '../../types/models';
+import type { PaginatedData } from '../../types/api';
 
-const list = ref<any[]>([]);
+const list = ref<WorkOrder[]>([]);
 const loading = ref(false);
 const page = ref(1);
 const pageSize = 20;
@@ -97,8 +99,8 @@ function statusTagType(s: string) {
 async function fetchList() {
   loading.value = true;
   try {
-    const res: any = await api.get('/work-orders', {
-      params: { page: page.value, pageSize, status: status.value || undefined, orderType: orderType.value || undefined },
+    const res = await apiGet<PaginatedData<WorkOrder>>('/work-orders', {
+      page: page.value, pageSize, status: status.value || undefined, orderType: orderType.value || undefined,
     });
     list.value = res.items;
     total.value = res.total;

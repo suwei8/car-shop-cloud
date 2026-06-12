@@ -25,7 +25,13 @@ export class ShopService {
     // 检查套餐限制
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: user.tenantId! },
-      include: { subscriptions: { include: { plan: true }, where: { status: 'active' }, take: 1 } },
+      include: {
+        subscriptions: {
+          include: { plan: true },
+          where: { status: 'active', endAt: { gte: new Date() } },
+          take: 1,
+        },
+      },
     });
     const maxShops = tenant?.subscriptions[0]?.plan?.maxShops || 1;
     const currentCount = await this.prisma.shop.count({

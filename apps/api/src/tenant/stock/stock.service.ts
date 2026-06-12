@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { JwtPayload } from '@car/shared';
 
 @Injectable()
@@ -13,6 +14,15 @@ export class StockService {
 
     if (warehouseId) where.warehouseId = warehouseId;
     if (partId) where.partId = partId;
+
+    const scope = user.dataScope || 'shop';
+    if (!user.isPlatform) {
+      if (scope === 'shop' && user.shopId) {
+        where.warehouse = { shopId: user.shopId };
+      } else if (scope === 'self') {
+        where.operatorId = user.sub;
+      }
+    }
 
     const balances = await this.prisma.stockBalance.findMany({
       where,
@@ -169,6 +179,101 @@ export class StockService {
     });
   }
 
+  /**
+   * 工单施工扣减库存（事务内调用）
+   * 在 work-order service 的 $transaction 中使用
+   */
+  async deductForWorkOrder(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    shopId: string,
+    workOrderId: string,
+    operatorId: string,
+  ): Promise<void> {
+    // 防重复扣减
+    const existingBill = await tx.stockBill.findFirst({
+      where: { tenantId, relatedType: 'work_order', relatedId: workOrderId, billType: 'out' },
+    });
+    if (existingBill) return;
+
+    const workOrder = await tx.workOrder.findFirst({
+      where: { id: workOrderId, tenantId },
+      include: { items: true },
+    });
+    if (!workOrder) return;
+
+    const partItems = workOrder.items.filter(item => item.itemType === 'part' && item.partId);
+    if (partItems.length === 0) return;
+
+    const warehouse = await tx.warehouse.findFirst({
+      where: { tenantId, shopId, isDefault: true },
+    });
+    if (!warehouse) return;
+
+    const billNo = await this.generateBillNo(tenantId, 'OUT', tx);
+    const bill = await tx.stockBill.create({
+      data: {
+        tenantId,
+        shopId,
+        billNo,
+        billType: 'out',
+        relatedType: 'work_order',
+        relatedId: workOrderId,
+        operatorId,
+        status: 'confirmed',
+        items: {
+          create: partItems.map(item => ({
+            tenantId,
+            partId: item.partId!,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.unitPrice),
+            amount: Number(item.amount),
+          })),
+        },
+      },
+      include: { items: true },
+    });
+
+    for (const item of bill.items) {
+      const balance = await tx.stockBalance.findFirst({
+        where: { tenantId, warehouseId: warehouse.id, partId: item.partId },
+      });
+
+      const currentQty = balance ? Number(balance.quantity) : 0;
+      const deductQty = Number(item.quantity);
+      const isNegative = currentQty < deductQty;
+
+      let updated;
+      if (balance) {
+        updated = await tx.stockBalance.update({
+          where: { id: balance.id },
+          data: { quantity: { decrement: item.quantity } },
+        });
+      } else {
+        updated = await tx.stockBalance.create({
+          data: { tenantId, warehouseId: warehouse.id, partId: item.partId, quantity: -deductQty },
+        });
+      }
+
+      await tx.stockMovement.create({
+        data: {
+          tenantId,
+          partId: item.partId,
+          warehouseId: warehouse.id,
+          movementType: 'out',
+          quantity: -deductQty,
+          balanceAfter: updated.quantity,
+          billId: bill.id,
+          billItemId: item.id,
+          relatedType: 'work_order',
+          relatedId: workOrderId,
+          operatorId,
+          remark: isNegative ? '库存不足' : undefined,
+        },
+      });
+    }
+  }
+
   // 库存流水查询
   async getMovements(user: JwtPayload, query: { page?: number; pageSize?: number; partId?: string; movementType?: string }) {
     const { page = 1, pageSize = 20, partId, movementType } = query;
@@ -176,6 +281,15 @@ export class StockService {
 
     if (partId) where.partId = partId;
     if (movementType) where.movementType = movementType;
+
+    const scope = user.dataScope || 'shop';
+    if (!user.isPlatform) {
+      if (scope === 'shop' && user.shopId) {
+        where.warehouse = { shopId: user.shopId };
+      } else if (scope === 'self') {
+        where.operatorId = user.sub;
+      }
+    }
 
     const [items, total] = await Promise.all([
       this.prisma.stockMovement.findMany({
@@ -201,6 +315,15 @@ export class StockService {
 
     if (billType) where.billType = billType;
     if (shopId) where.shopId = shopId;
+
+    const scope = user.dataScope || 'shop';
+    if (!user.isPlatform) {
+      if (scope === 'shop' && user.shopId && !where.shopId) {
+        where.shopId = user.shopId;
+      } else if (scope === 'self') {
+        where.operatorId = user.sub;
+      }
+    }
 
     const [items, total] = await Promise.all([
       this.prisma.stockBill.findMany({

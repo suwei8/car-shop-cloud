@@ -6,7 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AppointmentService } from './appointment.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
-import { CreateAppointmentDto } from './dto/appointment.dto';
+import { CreateAppointmentDto, UpdateAppointmentStatusDto } from './dto/appointment.dto';
 
 @ApiTags('appointments')
 @ApiBearerAuth()
@@ -39,7 +39,7 @@ export class AppointmentController {
   @Put(':id/status')
   @RequirePermissions('tenant:workorder:update')
   @ApiOperation({ summary: '更新预约状态' })
-  updateStatus(@Param('id') id: string, @Body() body: { status: string }, @CurrentUser() user: JwtPayload) {
-    return this.service.updateStatus(id, body.status, user);
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateAppointmentStatusDto, @CurrentUser() user: JwtPayload) {
+    return this.service.updateStatus(id, dto.status, user);
   }
 }

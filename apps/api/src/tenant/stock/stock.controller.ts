@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { StockService } from './stock.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { StockInDto } from './dto/stock.dto';
 
 @ApiTags('stock')
 @ApiBearerAuth()
@@ -38,8 +39,8 @@ export class StockController {
   @Post('in')
   @RequirePermissions('tenant:inventory:manage')
   @ApiOperation({ summary: '入库' })
-  stockIn(@Body() body: { shopId: string; supplierId?: string; remark?: string; items: { partId: string; quantity: number; unitPrice: number }[] }, @CurrentUser() user: JwtPayload) {
-    return this.service.stockIn(body, user);
+  stockIn(@Body() dto: StockInDto, @CurrentUser() user: JwtPayload) {
+    return this.service.stockIn(dto, user);
   }
 
   @Post('out/work-order/:workOrderId')

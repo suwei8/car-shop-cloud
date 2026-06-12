@@ -5,6 +5,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { FeatureFlagService } from './feature-flag.service';
 import { Roles, RequirePermissions } from '../../common/decorators';
+import { CreateFeatureFlagDto, SetTenantFlagDto } from './dto/feature-flag.dto';
 
 @ApiTags('platform/feature-flags')
 @ApiBearerAuth()
@@ -23,8 +24,8 @@ export class FeatureFlagController {
   @Post()
   @RequirePermissions('platform:feature:manage')
   @ApiOperation({ summary: '创建功能开关' })
-  create(@Body() body: { code: string; name: string; description?: string }) {
-    return this.service.create(body);
+  create(@Body() dto: CreateFeatureFlagDto) {
+    return this.service.create(dto);
   }
 
   @Post(':tenantId/:flagId')
@@ -33,8 +34,8 @@ export class FeatureFlagController {
   setTenantFlag(
     @Param('tenantId') tenantId: string,
     @Param('flagId') flagId: string,
-    @Body() body: { enabled: boolean },
+    @Body() dto: SetTenantFlagDto,
   ) {
-    return this.service.setTenantFlag(tenantId, flagId, body.enabled);
+    return this.service.setTenantFlag(tenantId, flagId, dto.enabled);
   }
 }

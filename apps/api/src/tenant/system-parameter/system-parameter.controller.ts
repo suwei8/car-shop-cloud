@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SystemParameterService } from './system-parameter.service';
 import { CurrentUser, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { UpsertSystemParameterDto } from './dto/system-parameter.dto';
 
 @ApiTags('system-parameters')
 @ApiBearerAuth()
@@ -19,7 +20,7 @@ export class SystemParameterController {
 
   @Put()
   @ApiOperation({ summary: '更新系统参数' })
-  upsert(@Body() body: { group: string; key: string; value: string; remark?: string }, @CurrentUser() user: JwtPayload) {
-    return this.service.upsert(body, user);
+  upsert(@Body() dto: UpsertSystemParameterDto, @CurrentUser() user: JwtPayload) {
+    return this.service.upsert(dto, user);
   }
 }

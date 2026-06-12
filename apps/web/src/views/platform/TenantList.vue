@@ -44,6 +44,9 @@
         <el-form-item label="联系电话">
           <el-input v-model="form.contactPhone" />
         </el-form-item>
+        <el-form-item label="密码" :prop="form.id ? '' : 'password'" :rules="form.id ? [] : [{ required: true, message: '请输入初始密码', trigger: 'blur' }, { min: 6, message: '密码至少6位', trigger: 'blur' }]">
+          <el-input v-model="form.password" type="password" show-password :placeholder="form.id ? '留空则不修改密码' : '管理员初始密码（至少6位）'" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -79,7 +82,7 @@ const subscribing = ref(false);
 const formRef = ref();
 const selectedTenantId = ref('');
 const selectedPlanId = ref('');
-const form = reactive({ id: '', name: '', contactName: '', contactPhone: '' });
+const form = reactive({ id: '', name: '', contactName: '', contactPhone: '', password: '' });
 const rules = { name: [{ required: true, message: '请输入商户名称', trigger: 'blur' }] };
 
 async function fetchList() {
@@ -99,9 +102,9 @@ async function fetchPlans() {
 
 function showDialog(row?: any) {
   if (row) {
-    Object.assign(form, { id: row.id, name: row.name, contactName: row.contactName, contactPhone: row.contactPhone });
+    Object.assign(form, { id: row.id, name: row.name, contactName: row.contactName, contactPhone: row.contactPhone, password: '' });
   } else {
-    Object.assign(form, { id: '', name: '', contactName: '', contactPhone: '' });
+    Object.assign(form, { id: '', name: '', contactName: '', contactPhone: '', password: '' });
   }
   dialogVisible.value = true;
 }
@@ -116,10 +119,12 @@ async function handleSave() {
   await formRef.value?.validate();
   saving.value = true;
   try {
+    const payload: Record<string, string> = { name: form.name, contactName: form.contactName, contactPhone: form.contactPhone };
+    if (form.password) payload.password = form.password;
     if (form.id) {
-      await api.put(`/platform/tenants/${form.id}`, form);
+      await api.put(`/platform/tenants/${form.id}`, payload);
     } else {
-      await api.post('/platform/tenants', form);
+      await api.post('/platform/tenants', { ...payload, password: form.password });
     }
     ElMessage.success('保存成功');
     dialogVisible.value = false;

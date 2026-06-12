@@ -5,7 +5,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PlatformTenantService } from './tenant.service';
 import { Roles, RequirePermissions } from '../../common/decorators';
-import { UpdateTenantDto } from './dto/tenant.dto';
+import { CreateTenantDto, UpdateTenantDto } from './dto/tenant.dto';
 
 @ApiTags('platform/tenants')
 @ApiBearerAuth()
@@ -31,8 +31,8 @@ export class PlatformTenantController {
   @Post()
   @RequirePermissions('platform:tenant:create')
   @ApiOperation({ summary: '创建商户' })
-  create(@Body() body: { name: string; contactName?: string; contactPhone?: string }) {
-    return this.service.create(body);
+  create(@Body() dto: CreateTenantDto) {
+    return this.service.create(dto);
   }
 
   @Put(':id')

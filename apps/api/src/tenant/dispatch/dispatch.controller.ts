@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DispatchService } from './dispatch.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { CreateDispatchDto, UploadPhotoDto } from './dto/dispatch.dto';
 
 @ApiTags('dispatch')
 @ApiBearerAuth()
@@ -38,8 +39,8 @@ export class DispatchController {
   @Post()
   @RequirePermissions('tenant:workorder:update')
   @ApiOperation({ summary: '创建派工' })
-  create(@Body() body: { workOrderId: string; technicianId: string; itemIds?: string[]; remark?: string; workPlace?: string; team?: string; assistantIds?: string }, @CurrentUser() user: JwtPayload) {
-    return this.service.create(body, user);
+  create(@Body() dto: CreateDispatchDto, @CurrentUser() user: JwtPayload) {
+    return this.service.create(dto, user);
   }
 
   @Put(':id/start')
@@ -68,9 +69,9 @@ export class DispatchController {
   @ApiOperation({ summary: '上传施工照片并联动车间状态' })
   uploadPhoto(
     @Param('id') id: string,
-    @Body() body: { fileUrl: string; originalName?: string },
+    @Body() dto: UploadPhotoDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.service.uploadPhoto(id, body, user);
+    return this.service.uploadPhoto(id, dto, user);
   }
 }

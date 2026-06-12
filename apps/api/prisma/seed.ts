@@ -50,7 +50,21 @@ async function main() {
       features: JSON.stringify({}),
     },
   });
-  console.log('Plans created:', basicPlan.name, proPlan.name);
+
+  const trialPlan = await prisma.subscriptionPlan.upsert({
+    where: { id: 'plan-trial' },
+    update: {},
+    create: {
+      id: 'plan-trial',
+      name: '试用版',
+      description: '新商户试用套餐',
+      priceYearly: 0,
+      maxShops: 1,
+      maxEmployees: 5,
+      features: JSON.stringify({}),
+    },
+  });
+  console.log('Plans created:', basicPlan.name, proPlan.name, trialPlan.name);
 
   // 3. 默认权限
   const permissions = [
@@ -62,6 +76,7 @@ async function main() {
     { code: 'platform:plan:view', name: '查看套餐', module: 'platform' },
     { code: 'platform:plan:manage', name: '管理套餐', module: 'platform' },
     { code: 'platform:feature:manage', name: '管理功能开关', module: 'platform' },
+    { code: 'platform:tenant:manage', name: '管理商户订阅', module: 'platform' },
     // 商户权限
     { code: 'tenant:shop:view', name: '查看门店', module: 'shop' },
     { code: 'tenant:shop:create', name: '创建门店', module: 'shop' },

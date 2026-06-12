@@ -16,6 +16,15 @@ export class DispatchService {
     if (technicianId) where.technicianId = technicianId;
     if (workOrderId) where.workOrderId = workOrderId;
 
+    const scope = user.dataScope || 'shop';
+    if (!user.isPlatform) {
+      if (scope === 'shop' && user.shopId) {
+        where.workOrder = { shopId: user.shopId };
+      } else if (scope === 'self') {
+        where.technicianId = user.sub;
+      }
+    }
+
     const [items, total] = await Promise.all([
       this.prisma.dispatchTask.findMany({
         where,

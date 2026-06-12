@@ -1,4 +1,4 @@
-const BASE_URL = 'https://car-api.555606.xyz';
+import { BASE_URL } from '../config';
 
 interface RequestOptions {
   url: string;

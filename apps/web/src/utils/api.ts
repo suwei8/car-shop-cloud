@@ -33,7 +33,6 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // 如果正在刷新中，将请求加入队列等待
       if (isRefreshing) {
         return new Promise((resolve) => {
           pendingRequests.push((token: string) => {
@@ -55,16 +54,13 @@ api.interceptors.response.use(
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', newRefreshToken);
 
-        // 重试原请求
         originalRequest.headers!.Authorization = `Bearer ${accessToken}`;
 
-        // 执行队列中的等待请求
         pendingRequests.forEach((cb) => cb(accessToken));
         pendingRequests = [];
 
         return api(originalRequest);
       } catch {
-        // refresh 也失败了，清除登录状态
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('userInfo');
@@ -82,5 +78,21 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+export async function apiGet<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+  return api.get(url, { params }) as unknown as T;
+}
+
+export async function apiPost<T>(url: string, data?: unknown): Promise<T> {
+  return api.post(url, data) as unknown as T;
+}
+
+export async function apiPut<T>(url: string, data?: unknown): Promise<T> {
+  return api.put(url, data) as unknown as T;
+}
+
+export async function apiDelete<T>(url: string): Promise<T> {
+  return api.delete(url) as unknown as T;
+}
 
 export default api;

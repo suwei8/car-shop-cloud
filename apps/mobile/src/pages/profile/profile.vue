@@ -81,7 +81,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { request } from '../../utils/request';
 
 const userInfo = ref<any>({});
 const shop = ref<any>(null);
@@ -178,6 +179,17 @@ onMounted(() => {
   const info = uni.getStorageSync('userInfo');
   if (info) {
     userInfo.value = typeof info === 'string' ? JSON.parse(info) : info;
+    if (userInfo.value.shopId) {
+      request({
+        url: `/api/shops/${userInfo.value.shopId}`,
+      }).then((res: any) => {
+        if (res.data?.code === 0) {
+          shop.value = res.data.data;
+        }
+      }).catch((err) => {
+        console.error('获取店铺信息失败', err);
+      });
+    }
   }
 });
 </script>

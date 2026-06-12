@@ -6,7 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { WorkOrderService } from './work-order.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
-import { CreateWorkOrderDto } from './dto/work-order.dto';
+import { CreateWorkOrderDto, UpdateWorkOrderStatusDto, AddWorkOrderItemsDto } from './dto/work-order.dto';
 
 @ApiTags('work-orders')
 @ApiBearerAuth()
@@ -39,14 +39,14 @@ export class WorkOrderController {
   @Put(':id/status')
   @RequirePermissions('tenant:workorder:update')
   @ApiOperation({ summary: '更新工单状态' })
-  updateStatus(@Param('id') id: string, @Body() body: { status: string }, @CurrentUser() user: JwtPayload) {
-    return this.service.updateStatus(id, body.status, user);
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateWorkOrderStatusDto, @CurrentUser() user: JwtPayload) {
+    return this.service.updateStatus(id, dto.status, user);
   }
 
   @Post(':id/items')
   @RequirePermissions('tenant:workorder:update')
   @ApiOperation({ summary: '添加工单项目' })
-  addItems(@Param('id') id: string, @Body() body: { items: any[] }, @CurrentUser() user: JwtPayload) {
-    return this.service.addItems(id, body.items, user);
+  addItems(@Param('id') id: string, @Body() dto: AddWorkOrderItemsDto, @CurrentUser() user: JwtPayload) {
+    return this.service.addItems(id, dto.items, user);
   }
 }

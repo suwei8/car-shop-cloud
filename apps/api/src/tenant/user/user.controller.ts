@@ -6,7 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
-import { UpdateUserDto } from './dto/user.dto';
+import { CreateUserDto, UpdateUserDto, UpdateUserStatusDto } from './dto/user.dto';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -32,8 +32,8 @@ export class UserController {
   @Post()
   @RequirePermissions('tenant:user:create')
   @ApiOperation({ summary: '创建员工' })
-  create(@Body() body: { name: string; phone: string; password: string; shopId: string; position?: string; roleIds: string[] }, @CurrentUser() user: JwtPayload) {
-    return this.service.create(body, user);
+  create(@Body() dto: CreateUserDto, @CurrentUser() user: JwtPayload) {
+    return this.service.create(dto, user);
   }
 
   @Put(':id')
@@ -46,7 +46,7 @@ export class UserController {
   @Put(':id/status')
   @RequirePermissions('tenant:user:update')
   @ApiOperation({ summary: '更新员工状态' })
-  updateStatus(@Param('id') id: string, @Body() body: { status: string }, @CurrentUser() user: JwtPayload) {
-    return this.service.updateStatus(id, body.status, user);
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateUserStatusDto, @CurrentUser() user: JwtPayload) {
+    return this.service.updateStatus(id, dto.status, user);
   }
 }

@@ -6,7 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CustomerService } from './customer.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
-import { UpdateCustomerDto } from './dto/customer.dto';
+import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 
 @ApiTags('customers')
 @ApiBearerAuth()
@@ -39,8 +39,8 @@ export class CustomerController {
   @Post()
   @RequirePermissions('tenant:customer:create')
   @ApiOperation({ summary: '创建客户' })
-  create(@Body() body: { name: string; phone: string; gender?: string; email?: string; address?: string; remark?: string }, @CurrentUser() user: JwtPayload) {
-    return this.service.create(body, user);
+  create(@Body() dto: CreateCustomerDto, @CurrentUser() user: JwtPayload) {
+    return this.service.create(dto, user);
   }
 
   @Put(':id')

@@ -97,12 +97,14 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import api from '../../utils/api';
+import { apiGet, apiPost } from '../../utils/api';
 import { ElMessage } from 'element-plus';
+import type { StoredValueCard, Customer } from '../../types/models';
+import type { PaginatedData } from '../../types/api';
 
-const list = ref<any[]>([]);
-const transactions = ref<any[]>([]);
-const customerOptions = ref<any[]>([]);
+const list = ref<StoredValueCard[]>([]);
+const transactions = ref<{ type: string; amount: number; balanceAfter: number; remark?: string; createdAt: string }[]>([]);
+const customerOptions = ref<Customer[]>([]);
 const loading = ref(false);
 const page = ref(1);
 const pageSize = 20;
@@ -125,7 +127,7 @@ const rechargeForm = reactive({ amount: 500, gift: 0, remark: '' });
 async function fetchList() {
   loading.value = true;
   try {
-    const res: any = await api.get('/stored-value-cards', { params: { page: page.value, pageSize } });
+    const res = await apiGet<PaginatedData<StoredValueCard>>('/stored-value-cards', { page: page.value, pageSize });
     list.value = res.items;
     total.value = res.total;
   } finally {
@@ -135,7 +137,7 @@ async function fetchList() {
 
 async function searchCustomer(keyword: string) {
   if (!keyword) return;
-  const res: any = await api.get('/customers/search', { params: { keyword } });
+  const res = await apiGet<Customer[]>('/customers/search', { keyword });
   customerOptions.value = res;
 }
 
@@ -144,14 +146,14 @@ function showDialog() {
   dialogVisible.value = true;
 }
 
-function showRechargeDialog(row: any) {
+function showRechargeDialog(row: StoredValueCard) {
   selectedCardId.value = row.id;
   Object.assign(rechargeForm, { amount: 500, gift: 0, remark: '' });
   rechargeDialogVisible.value = true;
 }
 
-async function showTransactions(row: any) {
-  const res: any = await api.get('/stored-value-cards/transactions', { params: { cardId: row.id } });
+async function showTransactions(row: StoredValueCard) {
+  const res = await apiGet<PaginatedData<{ type: string; amount: number; balanceAfter: number; remark?: string; createdAt: string }>>('/stored-value-cards/transactions', { cardId: row.id });
   transactions.value = res.items;
   transactionDialogVisible.value = true;
 }
@@ -160,7 +162,7 @@ async function handleSave() {
   await formRef.value?.validate();
   saving.value = true;
   try {
-    await api.post('/stored-value-cards', form);
+    await apiPost('/stored-value-cards', form);
     ElMessage.success('售卡成功');
     dialogVisible.value = false;
     fetchList();
@@ -172,7 +174,7 @@ async function handleSave() {
 async function handleRecharge() {
   saving.value = true;
   try {
-    await api.post(`/stored-value-cards/${selectedCardId.value}/recharge`, rechargeForm);
+    await apiPost(`/stored-value-cards/${selectedCardId.value}/recharge`, rechargeForm);
     ElMessage.success('充值成功');
     rechargeDialogVisible.value = false;
     fetchList();

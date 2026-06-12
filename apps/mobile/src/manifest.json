@@ -40,5 +40,15 @@
         }
       }
     }
+  },
+  "mp-weixin": {
+    "appid": "wxbce66a341a164179",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "postcss": true,
+      "minified": false
+    },
+    "usingComponents": true
   }
 }

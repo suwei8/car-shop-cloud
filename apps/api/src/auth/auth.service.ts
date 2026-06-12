@@ -10,6 +10,15 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
 
+const ALL_SCOPE_ROLES = ['tenant_admin', 'shop_manager'];
+
+function inferDataScope(roles: string[]): 'self' | 'shop' | 'all' {
+  if (roles.some(r => ALL_SCOPE_ROLES.includes(r))) {
+    return 'all';
+  }
+  return 'shop';
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -46,6 +55,15 @@ export class AuthService {
       throw new UnauthorizedException('手机号或密码错误');
     }
 
+    if (user.tenantId) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: user.tenantId },
+      });
+      if (!tenant || tenant.status !== 'active') {
+        throw new ForbiddenException('租户账号状态异常(已停用或过期)，请联系客服');
+      }
+    }
+
     const roles = user.userRoles.map((ur) => ur.role.code);
     const permissions = user.userRoles.flatMap((ur) =>
       ur.role.rolePermissions.map((rp) => rp.permission.code),
@@ -58,6 +76,7 @@ export class AuthService {
       isPlatform: user.isPlatform,
       roles: [...new Set(roles)],
       permissions: [...new Set(permissions)],
+      dataScope: user.isPlatform ? undefined : inferDataScope([...new Set(roles)]),
     };
 
     const tokens = await this.generateTokens(payload);
@@ -68,7 +87,7 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    return {
+    const result: any = {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       user: {
@@ -82,6 +101,26 @@ export class AuthService {
         permissions: payload.permissions,
       },
     };
+
+    if (user.tenantId) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: user.tenantId },
+        select: { subscriptionStatus: true, subscriptionEndAt: true },
+      });
+      if (tenant) {
+        const endAt = tenant.subscriptionEndAt;
+        const daysRemaining = endAt
+          ? Math.ceil((endAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+          : 0;
+        result.subscription = {
+          status: tenant.subscriptionStatus,
+          endAt: endAt ? endAt.toISOString() : null,
+          daysRemaining,
+        };
+      }
+    }
+
+    return result;
   }
 
   async refresh(refreshToken: string) {
@@ -115,6 +154,15 @@ export class AuthService {
       throw new ForbiddenException('账号已被禁用');
     }
 
+    if (tokenRecord.user.tenantId) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tokenRecord.user.tenantId },
+      });
+      if (!tenant || tenant.status !== 'active') {
+        throw new ForbiddenException('租户账号状态异常(已停用或过期)，无法获取新访问令牌');
+      }
+    }
+
     const user = tokenRecord.user;
     const roles = user.userRoles.map((ur) => ur.role.code);
     const permissions = user.userRoles.flatMap((ur) =>
@@ -128,6 +176,7 @@ export class AuthService {
       isPlatform: user.isPlatform,
       roles: [...new Set(roles)],
       permissions: [...new Set(permissions)],
+      dataScope: user.isPlatform ? undefined : inferDataScope([...new Set(roles)]),
     };
 
     const tokens = await this.generateTokens(payload);

@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { StoredValueCardService } from './stored-value-card.service';
 import { CurrentUser, RequirePermissions, TenantRequired } from '../../common/decorators';
 import { JwtPayload } from '@car/shared';
+import { CreateStoredValueCardDto, RechargeDto, RefundDto } from './dto/stored-value-card.dto';
 
 @ApiTags('stored-value-cards')
 @ApiBearerAuth()
@@ -38,21 +39,21 @@ export class StoredValueCardController {
   @Post()
   @RequirePermissions('tenant:member:manage')
   @ApiOperation({ summary: '售卡' })
-  create(@Body() body: { cardNo: string; customerId: string; amount: number; gift?: number; remark?: string }, @CurrentUser() user: JwtPayload) {
-    return this.service.create(body, user);
+  create(@Body() dto: CreateStoredValueCardDto, @CurrentUser() user: JwtPayload) {
+    return this.service.create(dto, user);
   }
 
   @Post(':id/recharge')
   @RequirePermissions('tenant:member:manage')
   @ApiOperation({ summary: '充值' })
-  recharge(@Param('id') id: string, @Body() body: { amount: number; gift?: number; remark?: string }, @CurrentUser() user: JwtPayload) {
-    return this.service.recharge(id, body, user);
+  recharge(@Param('id') id: string, @Body() dto: RechargeDto, @CurrentUser() user: JwtPayload) {
+    return this.service.recharge(id, dto, user);
   }
 
   @Post(':id/refund')
   @RequirePermissions('tenant:member:manage')
   @ApiOperation({ summary: '退款' })
-  refund(@Param('id') id: string, @Body() body: { amount: number; remark: string }, @CurrentUser() user: JwtPayload) {
-    return this.service.refund(id, body, user);
+  refund(@Param('id') id: string, @Body() dto: RefundDto, @CurrentUser() user: JwtPayload) {
+    return this.service.refund(id, dto, user);
   }
 }

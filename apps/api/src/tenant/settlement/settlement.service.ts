@@ -1,10 +1,15 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
+import { applyDataScope } from '../../common/utils/scope-where';
+import { PackageCardService } from '../package-card/package-card.service';
 
 @Injectable()
 export class SettlementService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private packageCardService: PackageCardService,
+  ) {}
 
   async findAll(user: JwtPayload, query: { page?: number; pageSize?: number; shopId?: string; status?: string; workOrderId?: string }) {
     const { page: _p = 1, pageSize: _ps = 20, shopId, status, workOrderId } = query;
@@ -16,15 +21,17 @@ export class SettlementService {
     if (status) where.status = status;
     if (workOrderId) where.workOrderId = workOrderId;
 
+    const scopedWhere = applyDataScope(user, where, 'shopId', 'operatorId');
+
     const [items, total] = await Promise.all([
       this.prisma.settlement.findMany({
-        where,
+        where: scopedWhere,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
         include: { payments: true },
       }),
-      this.prisma.settlement.count({ where }),
+      this.prisma.settlement.count({ where: scopedWhere }),
     ]);
 
     return { items, total, page, pageSize };
@@ -43,21 +50,45 @@ export class SettlementService {
   async settle(data: {
     workOrderId: string; discountAmount?: number;
     payments: { payMethod: string; amount: number; referenceNo?: string; cardId?: string; remark?: string }[];
+    packageRedemptions?: { cardId: string; itemId: string; serviceItemId: string; quantity: number }[];
   }, user: JwtPayload) {
     const workOrder = await this.prisma.workOrder.findFirst({
       where: { id: data.workOrderId, tenantId: user.tenantId! },
+      include: { items: true },
     });
     if (!workOrder) throw new NotFoundException('工单不存在');
     if (workOrder.status === 'settled') throw new ForbiddenException('工单已结算');
     if (workOrder.status !== 'completed') throw new ForbiddenException('只能结算已完成的工单');
 
     const totalAmount = Number(workOrder.totalAmount);
-    const discountAmount = data.discountAmount || 0;
-    const payableAmount = totalAmount - discountAmount;
+    let discountAmount = data.discountAmount || 0;
+    let packageDeductAmount = 0;
+
+    if (data.packageRedemptions?.length) {
+      for (const r of data.packageRedemptions) {
+        const matchedItem = workOrder.items.find(
+          i => i.serviceItemId === r.serviceItemId && i.itemType !== 'part',
+        );
+        if (!matchedItem) throw new ForbiddenException(`工单中未找到匹配的服务项目`);
+        packageDeductAmount += Number(matchedItem.amount);
+      }
+    }
+
+    const payableAmount = totalAmount - discountAmount - packageDeductAmount;
     const paidAmount = data.payments.reduce((sum, p) => sum + p.amount, 0);
     const debtAmount = Math.max(0, payableAmount - paidAmount);
 
     return this.prisma.$transaction(async (tx) => {
+      if (data.packageRedemptions?.length) {
+        for (const r of data.packageRedemptions) {
+          await this.packageCardService.redeem(
+            tx, user.tenantId!, r.cardId, r.itemId, r.quantity,
+            'settlement', '', user.sub,
+            workOrder.shopId, workOrder.vehicleId,
+          );
+        }
+      }
+
       const settleNo = await this.generateSettleNo(user.tenantId!, tx);
       const settlement = await tx.settlement.create({
         data: {
@@ -66,7 +97,7 @@ export class SettlementService {
           settleNo,
           workOrderId: data.workOrderId,
           totalAmount,
-          discountAmount,
+          discountAmount: discountAmount + packageDeductAmount,
           payableAmount,
           paidAmount,
           debtAmount,
@@ -85,7 +116,14 @@ export class SettlementService {
         include: { payments: true },
       });
 
-      // 处理储值卡支付余额扣减
+      if (data.packageRedemptions?.length) {
+        const settlementId = settlement.id;
+        await tx.packageCardTransaction.updateMany({
+          where: { relatedType: 'settlement', relatedId: '', tenantId: user.tenantId! },
+          data: { relatedId: settlementId },
+        });
+      }
+
       for (const p of data.payments) {
         if ((p.payMethod === 'card' || p.payMethod === 'stored_value') && p.cardId) {
           const card = await tx.storedValueCard.findFirst({
@@ -95,7 +133,6 @@ export class SettlementService {
           if (card.status !== 'active') throw new ForbiddenException('储值卡状态异常');
           if (Number(card.balance) < p.amount) throw new ForbiddenException('储值卡余额不足');
 
-          // 先扣赠送余额，再扣本金
           let remaining = p.amount;
           let deductGift = 0;
           let deductPrincipal = 0;
@@ -133,12 +170,11 @@ export class SettlementService {
         }
       }
 
-      // 更新工单状态
       await tx.workOrder.update({
         where: { id: data.workOrderId },
         data: {
           status: 'settled',
-          discountAmount,
+          discountAmount: discountAmount + packageDeductAmount,
           payableAmount,
         },
       });
@@ -153,7 +189,42 @@ export class SettlementService {
     if (settlement.status !== 'settled') throw new ForbiddenException('只能反结算已结算的单据');
 
     return this.prisma.$transaction(async (tx) => {
-      // 退还储值卡金额
+      const packageTransactions = await tx.packageCardTransaction.findMany({
+        where: {
+          tenantId: user.tenantId!,
+          relatedType: 'settlement',
+          relatedId: settlementId,
+          type: 'consume',
+        },
+      });
+
+      for (const pkgTx of packageTransactions) {
+        const item = await tx.packageCardItem.findFirst({
+          where: { id: pkgTx.itemId, tenantId: user.tenantId! },
+        });
+        if (item) {
+          const updatedItem = await tx.packageCardItem.update({
+            where: { id: item.id },
+            data: { remainQty: { increment: pkgTx.quantity } },
+          });
+
+          await tx.packageCardTransaction.create({
+            data: {
+              tenantId: user.tenantId!,
+              cardId: pkgTx.cardId,
+              itemId: pkgTx.itemId,
+              type: 'refund',
+              quantity: pkgTx.quantity,
+              remainAfter: updatedItem.remainQty,
+              relatedType: 'settlement',
+              relatedId: settlementId,
+              operatorId: user.sub,
+              remark: '工单反结算退回',
+            },
+          });
+        }
+      }
+
       const cardTransactions = await tx.storedValueTransaction.findMany({
         where: {
           tenantId: user.tenantId!,
@@ -168,8 +239,6 @@ export class SettlementService {
           where: { id: txRecord.cardId, tenantId: user.tenantId! },
         });
         if (card) {
-          // 由于 txRecord.amount, txRecord.principal, txRecord.gift 当时记录的是负数
-          // 退还时我们取反增量加回去
           const addTotal = -Number(txRecord.amount);
           const addPrincipal = -Number(txRecord.principal);
           const addGift = -Number(txRecord.gift);

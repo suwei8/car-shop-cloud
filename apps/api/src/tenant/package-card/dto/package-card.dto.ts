@@ -1,7 +1,26 @@
 import {
-  IsString, IsOptional, IsNumber, IsArray, IsDateString,
+  IsString, IsOptional, IsNumber, IsArray, IsDateString, Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class ConsumePackageCardDto {
+  @ApiProperty()
+  @IsString()
+  serviceItemId: string;
+
+  @ApiProperty()
+  @IsNumber()
+  @Min(0)
+  quantity: number;
+
+  @ApiProperty()
+  @IsString()
+  relatedType: string;
+
+  @ApiProperty()
+  @IsString()
+  relatedId: string;
+}
 
 class CreatePackageCardItemDto {
   @ApiProperty()

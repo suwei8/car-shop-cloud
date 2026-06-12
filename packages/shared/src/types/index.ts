@@ -27,6 +27,7 @@ export interface JwtPayload {
   isPlatform: boolean;
   roles: string[];
   permissions: string[];
+  dataScope?: 'self' | 'shop' | 'all';
 }
 
 /** 金额：整数分 */

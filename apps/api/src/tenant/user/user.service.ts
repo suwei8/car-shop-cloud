@@ -56,7 +56,13 @@ export class UserService {
     // 检查套餐员工数限制
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: user.tenantId! },
-      include: { subscriptions: { include: { plan: true }, where: { status: 'active' }, take: 1 } },
+      include: {
+        subscriptions: {
+          include: { plan: true },
+          where: { status: 'active', endAt: { gte: new Date() } },
+          take: 1,
+        },
+      },
     });
     const maxEmployees = tenant?.subscriptions[0]?.plan?.maxEmployees || 5;
     const currentCount = await this.prisma.user.count({

@@ -1,10 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
+import { validateTransition } from './work-order.state-machine';
+import { StockService } from '../stock/stock.service';
+import { applyDataScope } from '../../common/utils/scope-where';
 
 @Injectable()
 export class WorkOrderService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private stockService: StockService,
+  ) {}
 
   async findAll(user: JwtPayload, query: { page?: number; pageSize?: number; status?: string; shopId?: string; orderType?: string; customerId?: string; vehicleId?: string }) {
     const { page: _p = 1, pageSize: _ps = 20, status, shopId, orderType, customerId, vehicleId } = query;
@@ -18,9 +24,11 @@ export class WorkOrderService {
     if (customerId) where.customerId = customerId;
     if (vehicleId) where.vehicleId = vehicleId;
 
+    const scopedWhere = applyDataScope(user, where, 'shopId', 'advisorId');
+
     const [items, total] = await Promise.all([
       this.prisma.workOrder.findMany({
-        where,
+        where: scopedWhere,
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
@@ -30,7 +38,7 @@ export class WorkOrderService {
           items: { take: 3 },
         },
       }),
-      this.prisma.workOrder.count({ where }),
+      this.prisma.workOrder.count({ where: scopedWhere }),
     ]);
 
     return { items, total, page, pageSize };
@@ -106,10 +114,20 @@ export class WorkOrderService {
   }
 
   async updateStatus(id: string, status: string, user: JwtPayload) {
-    await this.findOne(id, user);
-    return this.prisma.workOrder.update({
-      where: { id, tenantId: user.tenantId! },
-      data: { status },
+    const order = await this.findOne(id, user);
+    validateTransition(order.status, status);
+
+    return this.prisma.$transaction(async (tx) => {
+      if (status === 'in_progress' && order.status !== 'in_progress') {
+        await this.stockService.deductForWorkOrder(
+          tx, user.tenantId!, order.shopId, id, user.sub,
+        );
+      }
+
+      return tx.workOrder.update({
+        where: { id, tenantId: user.tenantId! },
+        data: { status },
+      });
     });
   }
 
