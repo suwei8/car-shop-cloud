@@ -8,6 +8,7 @@ import { PlatformTenantModule } from './platform/tenant/tenant.module';
 import { PlatformSubscriptionPlanModule } from './platform/subscription-plan/subscription-plan.module';
 import { PlatformFeatureFlagModule } from './platform/feature-flag/feature-flag.module';
 import { SubscriptionTaskModule } from './platform/subscription-task/subscription-task.module';
+import { TenantStatsModule } from './platform/tenant-stats/tenant-stats.module';
 import { ShopModule } from './tenant/shop/shop.module';
 import { UserModule } from './tenant/user/user.module';
 import { RoleModule } from './tenant/role/role.module';
@@ -54,6 +55,7 @@ import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard, SubscriptionGu
     PlatformSubscriptionPlanModule,
     PlatformFeatureFlagModule,
     SubscriptionTaskModule,
+    TenantStatsModule,
     // Tenant modules
     ShopModule,
     UserModule,

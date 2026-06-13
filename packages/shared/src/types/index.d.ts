@@ -23,5 +23,6 @@ export interface JwtPayload {
     dataScope?: 'self' | 'shop' | 'all';
     audience?: 'employee' | 'customer';
     customerId?: string;
+    impersonatedBy?: string;
 }
 export type Cents = number;

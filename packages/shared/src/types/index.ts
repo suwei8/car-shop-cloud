@@ -30,6 +30,7 @@ export interface JwtPayload {
   dataScope?: 'self' | 'shop' | 'all';
   audience?: 'employee' | 'customer';
   customerId?: string;
+  impersonatedBy?: string;
 }
 
 /** 金额：整数分 */

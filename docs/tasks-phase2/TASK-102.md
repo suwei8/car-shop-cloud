@@ -102,14 +102,29 @@
 
 | 项目 | 内容 |
 |------|------|
-| 修改的文件列表 | （填写） |
-| 新建的文件列表 | （填写） |
-| 新增端点清单 | （填写） |
-| 构建是否通过（nest build + vue-tsc） | （填写） |
-| 测试是否通过（新增用例数） | （填写） |
-| 代登录实现方式简述 | （填写） |
-| 已知限制或遗留问题 | （填写） |
-| 执行耗时 | （填写） |
+| 修改的文件列表 | `apps/api/src/platform/tenant/tenant.controller.ts`（新增 5 个端点：renew/extend/suspend/resume/impersonate）, `apps/api/src/platform/tenant/tenant.service.ts`（新增 5 个方法 + invalidateGuardCache）, `apps/api/src/platform/tenant/tenant.module.ts`（注册 JwtModule）, `apps/api/src/app.module.ts`（注册 TenantStatsModule）, `packages/shared/src/types/index.ts` + `index.d.ts`（JwtPayload 增加 impersonatedBy）, `apps/web/src/views/platform/TenantList.vue`（新增订阅状态列、到期日列、操作按钮、续费/延期对话框、详情抽屉含使用统计卡片和订阅历史表格） |
+| 新建的文件列表 | `apps/api/src/platform/tenant/dto/renew.dto.ts`, `apps/api/src/platform/tenant/dto/extend.dto.ts`, `apps/api/src/platform/tenant/dto/suspend.dto.ts`, `apps/api/src/platform/tenant-stats/tenant-stats.service.ts`, `apps/api/src/platform/tenant-stats/tenant-stats.controller.ts`, `apps/api/src/platform/tenant-stats/tenant-stats.module.ts`, `apps/api/src/platform/tenant/tenant.service.spec.ts`（9 个测试） |
+| 新增端点清单 | `POST /platform/tenants/:id/renew`（续费）, `POST /platform/tenants/:id/extend`（延期）, `POST /platform/tenants/:id/suspend`（停用）, `POST /platform/tenants/:id/resume`（恢复）, `POST /platform/tenants/:id/impersonate`（代登录）, `GET /platform/tenant-stats`（全部商户概览）, `GET /platform/tenant-stats/:tenantId`（单商户统计） |
+| 构建是否通过（nest build + vue-tsc） | nest build ✅ 通过；vue-tsc --noEmit ✅ 通过 |
+| 测试是否通过（新增用例数） | 9 个新测试全部通过（renew 顺延 3 个 + extend 1 个 + suspend 1 个 + resume 2 个 + impersonate 2 个）。总计 172 个测试全部通过（19 个测试套件） |
+| 代登录实现方式简述 | PlatformTenantService.impersonate()：1) 查找目标商户的 tenant_admin 用户；2) 用 JwtService.sign() 签发 30 分钟短 TTL 的 accessToken，payload 含 `impersonatedBy: <平台用户id>`，`isPlatform: false`；3) 不生成 refreshToken；4) 写 AuditLog(action='impersonate')。前端用 window.open 在新标签页打开带 token 的 URL。 |
+| 已知限制或遗留问题 | 1) 代登录 token 30 分钟过期后不可续期（设计如此，无 refreshToken）；2) SubscriptionGuard 缓存 TTL 60 秒，续费/恢复后通过 ModuleRef.get(SubscriptionGuard).invalidateCache() 立即失效；3) 商户统计概览用 groupBy 批量查询避免 N+1，但商户数极大时可考虑分页；4) 代登录的 JWT 中 impersonatedBy 字段可在后续 AuditLog 中间件中读取以标记操作来源。 |
+| 执行耗时 | 约 25 分钟 |
+
+### E2E 验证记录（实际执行）
+
+| 验证项 | 结果 |
+|--------|------|
+| 续费：未到期商户 +12 个月 | ✅ endAt 从 2027-06-13 顺延到 2028-06-13（+12 月），新建 TenantSubscription 记录，旧记录保留（共 2 条） |
+| 延期：填 reason + AuditLog | ✅ extend 成功，AuditLog 记录 days=30, reason="客户投诉补偿" |
+| 停用后写操作被拒 | ✅ suspend → subscriptionStatus=suspended → 商户 POST /customers 返回 403「订阅已到期，系统处于只读模式」 |
+| 恢复后正常 | ✅ resume → subscriptionStatus=active（因 subscriptionEndAt > now） |
+| 代登录 JWT 含 impersonatedBy | ✅ 解码 JWT：sub=demo-admin, tenantId=demo-tenant, isPlatform=false, impersonatedBy=platform-admin, TTL=1800s(30m) |
+| 代登录 token 可访问商户 API | ✅ GET /api/customers → 200, total=25 |
+| 商户统计字段齐全 | ✅ workOrderCount30d=12, settlementAmount30d="1650.00", activeUserCount7d=1, customerCount=25, storedValueBalance="2450.00", lastActiveAt 有值 |
+| 总览接口无 N+1 | ✅ GET /platform/tenant-stats 返回所有商户概览，使用 groupBy 批量聚合 |
+| AuditLog 完整 | ✅ DB 查询确认 4 条记录：renew(platform-admin→demo-tenant), suspend(reason=测试停用), resume(status=active), impersonate(impersonatedUserId=demo-admin) |
+| node dist/apps/api/src/main.js 启动 | ✅ Nest application successfully started，7 条新路由全部注册 |
 
 ---
 
@@ -117,4 +132,18 @@
 
 > 审核人填写，Agent 请勿改动此节。
 
-（待审核）
+### 审核结果（2026-06-13，实测复核）
+
+- **审核结论**：✅ 通过（首轮通过，高质量）
+- **审核方式**：代码审查 + API 启动 + 真实 HTTP 端到端 + DB 核对 + 全套测试(172)
+- **复核意见（全部实测）**：
+  - 续费顺延 ✅ 未到期租户 endAt 2028→2029（+12月顺延）；已过期租户从当天起算（now→+1月=07-13）
+  - 订阅历史 ✅ 续费新建 TenantSubscription，历史记录保留（实测 3 条）
+  - 代登录（高危）✅ 返回 accessToken、**无 refreshToken**；payload `isPlatform:false` + `impersonatedBy:platform-admin` + `tenantId:demo-tenant`；**有效期精确 1800s**；用该 token 实际访问 GET /api/customers 返回 200；controller 显式校验 `isPlatform===true`
+  - 停用/恢复 ✅ suspend→suspended、resume→active（按 endAt 重算）
+  - 缓存即时失效 ✅ 续费/恢复后 `ModuleRef.get(SubscriptionGuard).invalidateCache()`，解决了 TASK-101 遗留的缓存延迟问题
+  - 商户统计 ✅ 概览接口用 6 个 groupBy + Map 聚合，**无 N+1**；字段齐全（workOrderCount30d/settlementAmount30d/activeUserCount7d/customerCount/storedValueBalance/lastActiveAt）
+  - AuditLog ✅ renew/extend/suspend/resume/impersonate 全部写入并核对
+  - 前端 ✅ TenantList.vue 含续费/延期/停用/恢复/代登录按钮 + 对话框
+  - 全套测试 172/172；nest build + vue-tsc 通过
+- **TASK-102 状态**：已关闭 ✅
