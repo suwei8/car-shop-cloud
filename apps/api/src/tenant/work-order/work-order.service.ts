@@ -4,12 +4,14 @@ import { JwtPayload } from '@car/shared';
 import { validateTransition } from './work-order.state-machine';
 import { StockService } from '../stock/stock.service';
 import { applyDataScope } from '../../common/utils/scope-where';
+import { NotificationService } from '../../notification/notification.service';
 
 @Injectable()
 export class WorkOrderService {
   constructor(
     private prisma: PrismaService,
     private stockService: StockService,
+    private notificationService: NotificationService,
   ) {}
 
   async findAll(user: JwtPayload, query: { page?: number; pageSize?: number; status?: string; shopId?: string; orderType?: string; customerId?: string; vehicleId?: string }) {
@@ -117,7 +119,7 @@ export class WorkOrderService {
     const order = await this.findOne(id, user);
     validateTransition(order.status, status);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       if (status === 'in_progress' && order.status !== 'in_progress') {
         await this.stockService.deductForWorkOrder(
           tx, user.tenantId!, order.shopId, id, user.sub,
@@ -129,6 +131,71 @@ export class WorkOrderService {
         data: { status },
       });
     });
+
+    if (status === 'completed') {
+      try {
+        const isDuplicate = await this.notificationService.checkDuplicate(
+          user.tenantId!, 'work_order', id, 'work_order_completed',
+        );
+
+        if (!isDuplicate) {
+          const notifyParam = await this.prisma.systemParameter.findFirst({
+            where: { tenantId: user.tenantId!, group: 'notify', key: 'notify_customer_on_completed' },
+          });
+          const notifyEnabled = !notifyParam || notifyParam.value !== 'false';
+
+          if (!notifyEnabled) {
+            await this.notificationService.skip({
+              tenantId: user.tenantId!,
+              shopId: order.shopId,
+              channel: 'sms',
+              scene: 'work_order_completed',
+              recipient: '',
+              content: '',
+              relatedType: 'work_order',
+              relatedId: id,
+              failReason: '商户已关闭完工通知',
+            });
+          } else {
+            const shop = await this.prisma.shop.findUnique({
+              where: { id: order.shopId },
+              select: { name: true },
+            });
+
+            const customerPhone = order.customer?.phone;
+            if (!customerPhone) {
+              await this.notificationService.skip({
+                tenantId: user.tenantId!,
+                shopId: order.shopId,
+                channel: 'sms',
+                scene: 'work_order_completed',
+                recipient: '',
+                content: '',
+                relatedType: 'work_order',
+                relatedId: id,
+                failReason: '客户无手机号',
+              });
+            } else {
+              const content = `您的爱车 ${order.vehiclePlateNo} 已在 ${shop?.name || '本店'} 完成施工，可随时到店取车。`;
+              await this.notificationService.send({
+                tenantId: user.tenantId!,
+                shopId: order.shopId,
+                channel: 'sms',
+                scene: 'work_order_completed',
+                recipient: customerPhone,
+                content,
+                relatedType: 'work_order',
+                relatedId: id,
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`[Notification] Failed for work order ${id}:`, err.message);
+      }
+    }
+
+    return result;
   }
 
   async addItems(orderId: string, items: {

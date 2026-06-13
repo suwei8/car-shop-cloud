@@ -115,15 +115,27 @@ interface SmsProvider {
 
 | 项目 | 内容 |
 |------|------|
-| 修改的文件列表 | （填写） |
-| 新建的文件列表 | （填写） |
-| migration 名称及执行结果 | （填写） |
-| Mock 模式端到端验证过程（完工→通知记录） | （填写，必填） |
-| 失败不影响主业务的实现方式 | （填写） |
-| 构建是否通过 (nest build) | （填写） |
-| 测试是否通过（新增用例数） | （填写） |
-| 已知限制或遗留问题 | （填写） |
-| 执行耗时 | （填写） |
+| 修改的文件列表 | `apps/api/prisma/schema.prisma`（新增 Notification 模型）, `apps/api/src/tenant/work-order/work-order.service.ts`（完工后触发通知）, `apps/api/src/tenant/work-order/work-order.module.ts`（导入 NotificationModule）, `apps/api/src/app.module.ts`（注册 NotificationModule）, `.env.example`（新增 SMS 通道配置） |
+| 新建的文件列表 | `apps/api/src/notification/notification.module.ts`, `apps/api/src/notification/notification.service.ts`, `apps/api/src/notification/notification.controller.ts`, `apps/api/src/notification/notification.service.spec.ts`, `apps/api/src/notification/providers/sms.provider.ts`, `apps/api/src/notification/providers/mock-sms.provider.ts`, `apps/api/src/notification/providers/aliyun-sms.provider.ts` |
+| migration 名称及执行结果 | `add_notifications`，执行成功 |
+| Mock 模式端到端验证过程（完工→通知记录） | **验证通过**。步骤：① 登录演示租户管理员；② 将工单 `cmppvah4r000phsfpsled88o3` 从 draft 依次流转至 confirmed → dispatching → in_progress；③ 转为 completed；④ 服务器日志显示 `[MockSmsProvider] [MOCK SMS] To: 138****9999, Template: work_order_completed`（手机号已脱敏）；⑤ 数据库确认：`notifications` 表新增 1 条记录，`scene=work_order_completed`，`recipient=13800009999`，`status=sent`，`content=您的爱车 京B88888 已在 本店 完成施工，可随时到店取车。`；⑥ 重复完工测试：状态机拒绝（"不允许从「已完成」流转到「已完成」"），通知记录仍为 1 条 |
+| 失败不影响主业务的实现方式 | 通知调用放在 `updateStatus` 方法的 `this.prisma.$transaction()` 提交之后，用 try/catch 包裹。即使通知抛出异常（网络错误、Provider 异常），工单状态变更已落库，不影响主业务 |
+| 构建是否通过 (nest build) | **通过**。`npx nest build` 无报错 |
+| 测试是否通过（新增用例数） | **全部通过**。`notification.service.spec.ts` 共 6 个用例：成功发送（mock）、Provider 失败时落库 failed 且不抛出、不支持的 channel 跳过、重复检测、无重复返回 false、分页查询带租户隔离 |
+| 已知限制或遗留问题 | 1. 阿里云 SDK（`@alicloud/dysmsapi20170525`）未安装，AliyunSmsProvider 为骨架实现，未配置密钥时自动回退到 MockSmsProvider；2. 商户级开关 `notify_customer_on_completed`（SystemParameter）未实现为自动读取，当前始终发送；3. 完工通知模板中的 `shopName` 在客户无关联门店时回退为 "本店" |
+| 执行耗时 | 约 25 分钟（含环境探查、代码实现、迁移、测试编写、端到端验证） |
+
+### 第 2 轮整改回执
+
+| 项目 | 内容 |
+|------|------|
+| 整改项 1：无手机号客户 → skipped | **已修复**。`notification.service.ts` 新增 `skip()` 方法直接落库 `status='skipped'`；`send()` 入口处 `recipient` 为空时直接调用 `skip()` 返回，不再走 Provider 发送流程。`work-order.service.ts` 中无手机号分支改用 `notificationService.skip()` 而非 `send()` + `updateMany`。 |
+| 整改项 2：notify_customer_on_completed 开关 | **已实现**。`work-order.service.ts` 在完工触发通知前读取 `SystemParameter(group='notify', key='notify_customer_on_completed')`；值为 `false` 时落库 `status='skipped', failReason='商户已关闭完工通知'`；为 `true` 或未设置时按默认发送。 |
+| 验证 1：无手机号 → skipped | **通过**。创建 `phone=''` 的客户，工单流转至 completed，通知记录 `status=skipped, failReason=客户无手机号`。 |
+| 验证 2：开关关闭 → skipped | **通过**。`INSERT system_parameters value='false'` 后流转完工，通知记录 `status=skipped, failReason=商户已关闭完工通知`；改回 `value='true'` 后流转完工，通知记录 `status=sent`。 |
+| 验证 3：正常手机号+开关开启 → sent | **通过**。正常客户（phone='13800001111'）+ 开关开启，完工后通知记录 `status=sent, recipient=13800001111`，日志脱敏 `138****1111`。 |
+| 单元测试 | `notification.service.spec.ts` 共 8 个用例全部通过（新增 2 个：空 recipient 跳过、skip 方法落库）。 |
+| nest build | **通过**。`npx nest build` 无报错。 |
 
 ---
 
@@ -131,4 +143,19 @@ interface SmsProvider {
 
 > 审核人填写，Agent 请勿改动此节。
 
-（待审核）
+### 审核结果（第 1 轮）
+
+- **审核时间**：2026-06-12
+- **审核结论**：❌ 需整改（2 项偏离任务书，其中 1 项为逻辑 bug）
+- **审核方式**：代码审查 + 单测复跑(6/6) + nest build(通过) + 真实 HTTP 端到端实测
+- **已达标项**：
+  - 通知模块结构、Provider 抽象、Mock/阿里云回退 ✅
+  - migration、Notification 表结构 ✅
+  - 完工通知在事务提交后触发 + try/catch 隔离 ✅（实测正常手机号工单产生 sent 记录、日志脱敏 138****9999）
+  - 重复完工查重 ✅；查询接口租户隔离 ✅
+  - 不写真实密钥 ✅
+- **必须整改项**：
+  1. **【逻辑 bug】无手机号客户通知未落库为 skipped**。任务书 3.4 与验收标准要求"客户无手机号则 skipped 并注明原因"。实测：将某客户手机号置空后流转工单至 completed，通知记录为 `status=sent, recipient='', failReason=空`，而非预期的 `skipped + 客户无手机号`。根因：无手机号分支仍以 `channel:'sms'`、空 recipient 调用 `send()`，MockProvider 对空号码返回 `ok:true` → 记录先被置为 `sent`；随后 `updateMany(where status:'pending')` 因状态已是 `sent` 匹配不到任何行，修正失效。回执"端到端验证"只测了正常手机号路径，未覆盖此分支。
+  2. **【缺失功能】商户级开关 `notify_customer_on_completed` 未实现**。任务书 3.3 与验收标准"商户参数关闭后状态为 skipped"明确要求，全代码库无此参数读取逻辑。回执已在"已知限制"中如实声明（诚信无问题），但属任务书明确要求项，需补齐。
+- **整改提示词已生成**，见对话。
+- **TASK-104 状态**：需整改（第 1 轮）
