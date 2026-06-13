@@ -33,6 +33,7 @@ import { PrintModule } from './tenant/print/print.module';
 import { FileModule } from './file/file.module';
 import { AuditModule } from './audit/audit.module';
 import { HealthModule } from './health/health.module';
+import { NotificationModule } from './notification/notification.module';
 import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard, SubscriptionGuard } from './common/guards';
 
 @Module({
@@ -44,6 +45,7 @@ import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard, SubscriptionGu
     AuditModule,
     FileModule,
     HealthModule,
+    NotificationModule,
     // Platform modules
     PlatformTenantModule,
     PlatformSubscriptionPlanModule,

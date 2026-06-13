@@ -915,3 +915,23 @@ model Sequence {
   @@unique([tenantId, key, date])
   @@map("sequences")
 }
+
+model Notification {
+  id          String   @id @default(cuid())
+  tenantId    String
+  shopId      String?
+  channel     String   // sms, internal, wechat_mp
+  scene       String   // work_order_completed, renewal_reminder, ...
+  recipient   String
+  content     String
+  status      String   @default("pending") // pending, sent, failed, skipped
+  failReason  String?
+  relatedType String?
+  relatedId   String?
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, scene])
+  @@index([relatedType, relatedId])
+  @@map("notifications")
+}

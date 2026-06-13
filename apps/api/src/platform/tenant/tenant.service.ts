@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { TenantInitializerService } from './tenant-initializer.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class PlatformTenantService {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    private initializer: TenantInitializerService,
   ) {}
 
   async findAll(query: { page?: number; pageSize?: number; status?: string }) {
@@ -46,7 +48,7 @@ export class PlatformTenantService {
     const now = new Date();
     const trialEndAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
           ...tenantData,
@@ -70,28 +72,23 @@ export class PlatformTenantService {
         },
       });
 
-      const user = await tx.user.create({
-        data: {
-          tenantId: tenant.id,
-          phone: data.contactPhone || '',
-          name: data.contactName || '管理员',
-          passwordHash,
-          isPlatform: false,
-          status: 'active',
-        },
-      });
-
-      const adminRole = await tx.role.findFirst({
-        where: { code: 'tenant_admin', tenantId: null },
-      });
-      if (adminRole) {
-        await tx.userRole.create({
-          data: { userId: user.id, roleId: adminRole.id },
-        });
-      }
+      // 调用初始化器创建基础数据（门店、仓库、角色、服务项目、字典）
+      await this.initializer.initialize(
+        tx,
+        tenant.id,
+        tenant.name,
+        data.contactPhone || '',
+        passwordHash,
+        data.contactName || '管理员',
+      );
 
       return tenant;
     });
+
+    return {
+      ...result,
+      adminPassword: password,
+    };
   }
 
   async update(id: string, data: { name?: string; contactName?: string; contactPhone?: string; password?: string; status?: string }) {

@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { PERMISSIONS } from './seed-data/permissions';
 
 const prisma = new PrismaClient();
 
@@ -66,54 +67,15 @@ async function main() {
   });
   console.log('Plans created:', basicPlan.name, proPlan.name, trialPlan.name);
 
-  // 3. 默认权限
-  const permissions = [
-    // 平台权限
-    { code: 'platform:tenant:view', name: '查看商户', module: 'platform' },
-    { code: 'platform:tenant:create', name: '创建商户', module: 'platform' },
-    { code: 'platform:tenant:update', name: '编辑商户', module: 'platform' },
-    { code: 'platform:tenant:delete', name: '删除商户', module: 'platform' },
-    { code: 'platform:plan:view', name: '查看套餐', module: 'platform' },
-    { code: 'platform:plan:manage', name: '管理套餐', module: 'platform' },
-    { code: 'platform:feature:manage', name: '管理功能开关', module: 'platform' },
-    { code: 'platform:tenant:manage', name: '管理商户订阅', module: 'platform' },
-    // 商户权限
-    { code: 'tenant:shop:view', name: '查看门店', module: 'shop' },
-    { code: 'tenant:shop:create', name: '创建门店', module: 'shop' },
-    { code: 'tenant:shop:update', name: '编辑门店', module: 'shop' },
-    { code: 'tenant:shop:delete', name: '删除门店', module: 'shop' },
-    { code: 'tenant:user:view', name: '查看员工', module: 'user' },
-    { code: 'tenant:user:create', name: '创建员工', module: 'user' },
-    { code: 'tenant:user:update', name: '编辑员工', module: 'user' },
-    { code: 'tenant:user:delete', name: '删除员工', module: 'user' },
-    { code: 'tenant:role:view', name: '查看角色', module: 'role' },
-    { code: 'tenant:role:manage', name: '管理角色', module: 'role' },
-    { code: 'tenant:customer:view', name: '查看客户', module: 'customer' },
-    { code: 'tenant:customer:create', name: '创建客户', module: 'customer' },
-    { code: 'tenant:customer:update', name: '编辑客户', module: 'customer' },
-    { code: 'tenant:vehicle:view', name: '查看车辆', module: 'vehicle' },
-    { code: 'tenant:vehicle:create', name: '创建车辆', module: 'vehicle' },
-    { code: 'tenant:vehicle:update', name: '编辑车辆', module: 'vehicle' },
-    { code: 'tenant:workorder:view', name: '查看工单', module: 'workorder' },
-    { code: 'tenant:workorder:create', name: '创建工单', module: 'workorder' },
-    { code: 'tenant:workorder:update', name: '编辑工单', module: 'workorder' },
-    { code: 'tenant:inventory:view', name: '查看库存', module: 'inventory' },
-    { code: 'tenant:inventory:manage', name: '管理库存', module: 'inventory' },
-    { code: 'tenant:settlement:view', name: '查看结算', module: 'settlement' },
-    { code: 'tenant:settlement:manage', name: '管理结算', module: 'settlement' },
-    { code: 'tenant:member:view', name: '查看会员', module: 'member' },
-    { code: 'tenant:member:manage', name: '管理会员', module: 'member' },
-    { code: 'tenant:report:view', name: '查看报表', module: 'report' },
-  ];
-
-  for (const perm of permissions) {
+  // 3. 默认权限（幂等 upsert）
+  for (const perm of PERMISSIONS) {
     await prisma.permission.upsert({
       where: { code: perm.code },
       update: {},
       create: perm,
     });
   }
-  console.log(`Created ${permissions.length} permissions`);
+  console.log(`Created ${PERMISSIONS.length} permissions`);
 
   // 4. 平台管理员角色
   const platformAdminRole = await prisma.role.upsert({

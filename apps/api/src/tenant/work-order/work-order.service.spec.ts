@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { WorkOrderService } from './work-order.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StockService } from '../stock/stock.service';
+import { NotificationService } from '../../notification/notification.service';
 import { JwtPayload } from '@car/shared';
 
 describe('WorkOrderService', () => {
@@ -46,11 +47,14 @@ describe('WorkOrderService', () => {
 
     stockService = { deductForWorkOrder: jest.fn() };
 
+    const notificationService = { send: jest.fn(), skip: jest.fn(), checkDuplicate: jest.fn().mockResolvedValue(false) };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WorkOrderService,
         { provide: PrismaService, useValue: prisma },
         { provide: StockService, useValue: stockService },
+        { provide: NotificationService, useValue: notificationService },
       ],
     }).compile();
 

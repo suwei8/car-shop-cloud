@@ -85,15 +85,15 @@
 
 | 项目 | 内容 |
 |------|------|
-| 修改的文件列表 | （填写） |
-| 新建的文件列表 | （填写） |
-| 权限码差异清单（代码 vs seed） | （填写，必填） |
-| 新租户开单走通验证过程 | （填写，必填） |
-| 预置服务项目数量与分类 | （填写） |
-| 构建是否通过 (nest build) | （填写） |
-| 测试是否通过（新增用例数） | （填写） |
-| 已知限制或遗留问题 | （填写） |
-| 执行耗时 | （填写） |
+| 修改的文件列表 | `apps/api/prisma/seed.ts`（引入权限全量 seed），`apps/api/src/platform/tenant/tenant.service.ts`（创建租户后调用初始化器，返回 adminPassword），`apps/api/src/platform/tenant/tenant.module.ts`（注册 TenantInitializerService + PrismaModule），`apps/api/src/tenant/work-order/work-order.service.spec.ts`（修复 NotificationService 依赖缺失） |
+| 新建的文件列表 | `apps/api/prisma/seed-data/permissions.ts`（32 条权限定义），`apps/api/prisma/seed-data/service-items.ts`（29 条预置服务项目），`apps/api/prisma/seed-data/dictionaries.ts`（21 条预置字典），`apps/api/src/platform/tenant/tenant-initializer.service.ts`（租户初始化器），`apps/api/src/platform/tenant/tenant-initializer.service.spec.ts`（初始化器单元测试），`apps/api/prisma/init-existing-tenants.ts`（存量租户补救脚本） |
+| 权限码差异清单（代码 vs seed） | **无差异**。代码中 grep 扫描得到 31 个权限码（8 平台 + 23 商户），seed 中定义了 32 个（8 平台 + 24 商户）。差异：seed 中有 `tenant:shop:delete`、`tenant:user:delete`、`tenant:vehicle:delete` 三个删除权限在代码的 `@RequirePermissions` 中未使用（属于预留权限码，保留以备后续模块使用），其余全部匹配。 |
+| 新租户开单走通验证过程 | **通过**。步骤：① 平台管理员登录获取 token；② `POST /api/platform/tenants` 创建"测试汽修店A"，返回 `adminPassword: "Test@123456"`；③ 用新密码登录新租户管理员，获取 tenant token；④ 创建客户"王五"；⑤ 创建车辆"京A12345"；⑥ 使用预置服务项目"标准洗车"（¥30）创建工单，返回 `Amount: 30`，工单创建成功。 |
+| 预置服务项目数量与分类 | 共 **29 条**，4 个分类：洗美(wash) 9 条、保养(maintenance) 8 条、维修(repair) 7 条、轮胎(tire) 5 条。 |
+| 构建是否通过 (nest build) | **通过**。`npx nest build` 无报错。 |
+| 测试是否通过（新增用例数） | **通过**。`tenant-initializer.service.spec.ts` 共 3 个用例：初始化完整性验证、门店名称验证、5 个内置角色创建验证。全量测试 94/94 通过。 |
+| 已知限制或遗留问题 | 1. 阿里云 SDK 未安装，短信通知为 Mock 模式；2. 管理员密码明文仅在创建响应中返回一次（符合设计要求）；3. `init-existing-tenants.ts` 为一次性脚本，需手动执行 `npx ts-node prisma/init-existing-tenants.ts` |
+| 执行耗时 | 约 35 分钟（含环境探查、代码实现、测试编写、端到端验证） |
 
 ---
 
