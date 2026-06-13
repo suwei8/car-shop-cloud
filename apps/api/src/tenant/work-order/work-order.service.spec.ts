@@ -4,12 +4,14 @@ import { WorkOrderService } from './work-order.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StockService } from '../stock/stock.service';
 import { NotificationService } from '../../notification/notification.service';
+import { FeatureFlagService } from '../../platform/feature-flag/feature-flag.service';
 import { JwtPayload } from '@car/shared';
 
 describe('WorkOrderService', () => {
   let service: WorkOrderService;
   let prisma: Record<string, any>;
   let stockService: Record<string, any>;
+  let featureFlagService: Record<string, any>;
 
   const mockUser: JwtPayload = {
     sub: 'user-1',
@@ -49,12 +51,15 @@ describe('WorkOrderService', () => {
 
     const notificationService = { send: jest.fn(), skip: jest.fn(), checkDuplicate: jest.fn().mockResolvedValue(false) };
 
+    featureFlagService = { isFlagEnabled: jest.fn().mockResolvedValue(false) };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WorkOrderService,
         { provide: PrismaService, useValue: prisma },
         { provide: StockService, useValue: stockService },
         { provide: NotificationService, useValue: notificationService },
+        { provide: FeatureFlagService, useValue: featureFlagService },
       ],
     }).compile();
 
@@ -164,6 +169,47 @@ describe('WorkOrderService', () => {
       expect(stockService.deductForWorkOrder).toHaveBeenCalledWith(
         expect.anything(), 'tenant-1', 'shop-1', 'wo-1', 'user-1',
       );
+    });
+  });
+
+  describe('updateStatus - 简易模式', () => {
+    it('confirmed → completed：合法，且触发库存扣减', async () => {
+      featureFlagService.isFlagEnabled.mockResolvedValue(true);
+      prisma.workOrder.findFirst.mockResolvedValue({
+        id: 'wo-1', tenantId: 'tenant-1', status: 'confirmed', shopId: 'shop-1',
+      });
+      prisma.workOrder.update.mockResolvedValue({ id: 'wo-1', status: 'completed' });
+
+      await service.updateStatus('wo-1', 'completed', mockUser);
+
+      expect(prisma.workOrder.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'completed' } }),
+      );
+      expect(stockService.deductForWorkOrder).toHaveBeenCalledWith(
+        expect.anything(), 'tenant-1', 'shop-1', 'wo-1', 'user-1',
+      );
+    });
+
+    it('confirmed → completed：普通模式下非法', async () => {
+      featureFlagService.isFlagEnabled.mockResolvedValue(false);
+      prisma.workOrder.findFirst.mockResolvedValue({
+        id: 'wo-1', tenantId: 'tenant-1', status: 'confirmed', shopId: 'shop-1',
+      });
+
+      await expect(service.updateStatus('wo-1', 'completed', mockUser)).rejects.toThrow();
+    });
+
+    it('in_progress → completed：普通模式下不重复扣库存', async () => {
+      featureFlagService.isFlagEnabled.mockResolvedValue(false);
+      prisma.workOrder.findFirst.mockResolvedValue({
+        id: 'wo-1', tenantId: 'tenant-1', status: 'in_progress', shopId: 'shop-1',
+      });
+      prisma.workOrder.update.mockResolvedValue({ id: 'wo-1', status: 'completed' });
+
+      await service.updateStatus('wo-1', 'completed', mockUser);
+
+      // in_progress → completed 不应再次扣库存（已在 in_progress 时扣过）
+      expect(stockService.deductForWorkOrder).not.toHaveBeenCalled();
     });
   });
 

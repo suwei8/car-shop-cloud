@@ -5,6 +5,11 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
+import { SmsCodeService } from './sms-code.service';
+import { RegistrationService } from './registration.service';
+import { RegistrationController } from './registration.controller';
+import { PlatformTenantModule } from '../platform/tenant/tenant.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -24,12 +29,16 @@ import { JwtStrategy } from './jwt.strategy';
       },
       inject: [ConfigService],
     }),
+    PlatformTenantModule,
+    NotificationModule,
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, RegistrationController],
   providers: [
     AuthService,
     JwtStrategy,
+    SmsCodeService,
+    RegistrationService,
   ],
-  exports: [AuthService],
+  exports: [AuthService, SmsCodeService],
 })
 export class AuthModule {}

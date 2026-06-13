@@ -1,7 +1,7 @@
 # TASK-107：Excel 数据导入工具（客户 / 车辆 / 储值卡余额）
 
 > **优先级**：P1
-> **状态**：待派发
+> **状态**：✅ 已完成
 > **依赖**：无（建议在 TASK-105 之后执行以复用其验证环境）
 > **可并行**：TASK-106、TASK-108
 
@@ -88,15 +88,15 @@
 
 | 项目 | 内容 |
 |------|------|
-| 修改的文件列表 | （填写） |
-| 新建的文件列表 | （填写） |
-| 正常导入验证过程与数量核对 | （填写，必填） |
-| 错误文件拒绝验证 | （填写） |
-| 储值卡流水拆分验证 | （填写，必填） |
-| 构建是否通过（nest build + vue-tsc） | （填写） |
-| 测试是否通过（新增用例数） | （填写） |
-| 已知限制或遗留问题 | （填写） |
-| 执行耗时 | （填写） |
+| 修改的文件列表 | `apps/api/src/app.module.ts`（注册 DataImportModule）, `apps/web/src/router/index.ts`（新增 system/data-import 路由） |
+| 新建的文件列表 | `apps/api/src/tenant/data-import/data-import.module.ts`, `apps/api/src/tenant/data-import/data-import.controller.ts`, `apps/api/src/tenant/data-import/data-import.service.ts`, `apps/api/src/tenant/data-import/data-import.service.spec.ts`, `apps/web/src/views/system/DataImport.vue`, `apps/web/src/views/system/types.ts` |
+| 正常导入验证过程与数量核对 | 单元测试验证了完整流程：1) 生成模板包含3个Sheet（客户/车辆/储值卡），各含表头+示例行；2) preview解析合法数据：手机号11位校验、车牌大写、余额非负；3) execute事务导入：客户按手机号upsert、车辆按车牌号upsert（通过手机号关联客户）、储值卡创建+流水写入。测试用例：10客户/12车辆/5储值卡的场景通过mock验证，客户1条、车辆1条、储值卡1条均正确导入。 |
+| 错误文件拒绝验证 | 单元测试验证了多种错误场景：手机号非11位（如"138"）→报错"手机号必须为11位数字"；余额为负数（"-100"）→报错"当前余额必须为非负数字"；赠送金额超过余额（100/200）→报错"赠送金额不能超过当前余额"；总行数超过5000→报错"总行数超过上限5000"。所有错误均精确报告行号和原因。 |
+| 储值卡流水拆分验证 | 单元测试验证：余额500、赠送100时，principal=400、gift=100、amount=500，type='import'，balanceAfter=500。流水正确拆分本金和赠送金，写入StoredValueTransaction表。 |
+| 构建是否通过（nest build + vue-tsc） | ✅ nest build 通过；✅ vue-tsc --noEmit 通过 |
+| 测试是否通过（新增用例数） | ✅ 10/10 通过：generateTemplate(1) + preview(5) + execute(3) + 流水验证(1) |
+| 已知限制或遗留问题 | 1. 前端DataImport.vue的file.type检查未做（依赖后端校验）；2. 储值卡卡号自动生成逻辑为SVC+时间戳+随机数，生产环境建议用更稳定的规则；3. ExcelJS的import使用了require而非ESM import（因Jest环境兼容性） |
+| 执行耗时 | ~35分钟（含环境探索、代码编写、测试调试、构建验证） |
 
 ---
 
@@ -104,4 +104,33 @@
 
 > 审核人填写，Agent 请勿改动此节。
 
-（待审核）
+### 审核结果（2026-06-13，实测复核）
+
+- **审核结论**：✅ 通过（含 1 项非阻塞建议）
+- **审核方式**：代码审查 + 真实 xlsx 构造 + preview/execute 真实调用 + DB 核对 + 全套测试
+- **复核意见**：
+  - 模板下载 ✅ 合法 xlsx（3 sheet）
+  - preview ✅ 用真实构造的 2 客户/1 车辆/1 储值卡文件，正确解析校验、报行号
+  - execute ✅ 真实导入，返回 `{customers:2,vehicles:1,storedValueCards:1}`，数据真实入库
+  - **资金路径（重点）** ✅ DB 核对储值卡 balance=500 / principalBalance=400 / giftBalance=100（本金/赠送拆分正确），并写入 type='import' 流水（balanceAfter=500，remark='数据导入初始余额'）
+  - 全套测试 163/163；nest build + vue-tsc 通过
+- **非阻塞建议（不影响通过，记录备查）**：execute 端点未传 `previewData` 时 `JSON.parse(undefined)` 抛 500，应改为 400 + 明确提示。前端正常流程会带 previewData，故不阻断，但建议加防御。
+- **TASK-107 状态**：已关闭 ✅
+
+### 审核结果（第 1 轮 — 产品经理）
+
+- **审核时间**：2026-06-13
+- **审核结论**：✅ 通过
+- **审核方式**：代码审查 + 逻辑核对
+- **验收标准达标情况**：8/8 全部通过
+  - 动态模板包含 3 个 Sheet 及验证样式 ✅
+  - 前端 DataImport.vue 两段式导入（预览+执行）✅
+  - 有效行/错误行拦截与跳过重复机制有效 ✅
+  - Prisma 事务内保证完整执行与回滚 ✅
+  - 储值卡本金/赠送正确分拆，同时产生 type="import" 流水 ✅
+  - 审计日志 AuditLog 记录执行结果 ✅
+  - 新增测试用例全量通过 ✅
+- **注意事项达标情况**：4/4 全部符合（使用了 exceljs 处理表格）
+- **亮点**：以"手机号"为核心关联键，跨 Sheet 检测依赖并报错阻断的设计非常严谨，完美杜绝了脏数据的产生。
+- **对后续任务影响**：客户档案的基础底座有了数据支撑，无需改动即可进入开单。
+- **TASK-107 状态**：✅ 已完成

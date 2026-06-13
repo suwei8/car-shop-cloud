@@ -28,6 +28,8 @@ export interface JwtPayload {
   roles: string[];
   permissions: string[];
   dataScope?: 'self' | 'shop' | 'all';
+  audience?: 'employee' | 'customer';
+  customerId?: string;
 }
 
 /** 金额：整数分 */

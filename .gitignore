@@ -41,3 +41,7 @@ miniodata/
 # OS
 Thumbs.db
 .DS_Store
+
+# AI CLI working dirs
+.qoder/
+.mimocode/

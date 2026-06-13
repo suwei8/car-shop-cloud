@@ -64,7 +64,8 @@
         <template #header>操作</template>
         <el-space>
           <el-button v-if="order.status === 'draft'" type="primary" @click="updateStatus('confirmed')">确认工单</el-button>
-          <el-button v-if="order.status === 'confirmed'" type="warning" @click="updateStatus('in_progress')">开始施工</el-button>
+          <el-button v-if="order.status === 'confirmed' && !isSimpleMode" type="warning" @click="updateStatus('in_progress')">开始施工</el-button>
+          <el-button v-if="order.status === 'confirmed' && isSimpleMode" type="success" @click="updateStatus('completed')">一键完工</el-button>
           <el-button v-if="order.status === 'in_progress'" type="success" @click="updateStatus('completed')">施工完成</el-button>
         </el-space>
       </el-card>
@@ -105,12 +106,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../../utils/api';
 import { ElMessage } from 'element-plus';
+import { useAuthStore } from '../../stores/auth';
 
 const route = useRoute();
+const auth = useAuthStore();
+const isSimpleMode = computed(() => auth.isSimpleMode);
 const order = ref<any>(null);
 const loading = ref(false);
 const saving = ref(false);

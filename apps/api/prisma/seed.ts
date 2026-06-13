@@ -216,6 +216,19 @@ async function main() {
   }
   console.log('Demo tenant and admin created');
 
+  // 7. 预置 Feature Flags
+  const simpleModeFlag = await prisma.featureFlag.upsert({
+    where: { id: 'flag-simple-mode' },
+    update: {},
+    create: {
+      id: 'flag-simple-mode',
+      code: 'simple_mode',
+      name: '简易模式',
+      description: '面向小型门店隐藏派工/仓库/预检等高级功能，核心体验压缩为车牌→选项目→收钱',
+    },
+  });
+  console.log('Feature flag created:', simpleModeFlag.code);
+
   console.log('Seed completed!');
 }
 

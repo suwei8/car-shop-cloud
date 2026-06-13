@@ -34,6 +34,9 @@ import { FileModule } from './file/file.module';
 import { AuditModule } from './audit/audit.module';
 import { HealthModule } from './health/health.module';
 import { NotificationModule } from './notification/notification.module';
+import { DataImportModule } from './tenant/data-import/data-import.module';
+import { ReminderModule } from './tenant/reminder/reminder.module';
+import { CustomerPortalModule } from './customer-portal/customer-portal.module';
 import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard, SubscriptionGuard } from './common/guards';
 
 @Module({
@@ -74,6 +77,9 @@ import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard, SubscriptionGu
     DashboardModule,
     ReportModule,
     PrintModule,
+    DataImportModule,
+    ReminderModule,
+    CustomerPortalModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

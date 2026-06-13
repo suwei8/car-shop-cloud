@@ -23,6 +23,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<JwtPayload> {
+    if (payload.audience === 'customer') {
+      throw new UnauthorizedException('车主 Token 不可用于商户端');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
     });
@@ -31,6 +35,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('用户不存在或已被禁用');
     }
 
-    return payload;
+    return { ...payload, audience: payload.audience || 'employee' };
   }
 }

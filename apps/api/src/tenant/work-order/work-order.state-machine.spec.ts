@@ -60,6 +60,30 @@ describe('validateTransition', () => {
       expect((e as BadRequestException).message).toContain('已结算');
     }
   });
+
+  describe('简易模式（simpleMode = true）', () => {
+    it('confirmed → completed：合法', () => {
+      expect(() => validateTransition('confirmed', 'completed', true)).not.toThrow();
+    });
+
+    it('confirmed → dispatching：仍然合法', () => {
+      expect(() => validateTransition('confirmed', 'dispatching', true)).not.toThrow();
+    });
+
+    it('confirmed → cancelled：仍然合法', () => {
+      expect(() => validateTransition('confirmed', 'cancelled', true)).not.toThrow();
+    });
+
+    it('其他非法跳转仍被拒绝', () => {
+      expect(() => validateTransition('draft', 'settled', true)).toThrow(BadRequestException);
+    });
+  });
+
+  describe('普通模式下 confirmed → completed 仍非法', () => {
+    it('confirmed → completed：非法', () => {
+      expect(() => validateTransition('confirmed', 'completed', false)).toThrow(BadRequestException);
+    });
+  });
 });
 
 describe('statusLabel', () => {

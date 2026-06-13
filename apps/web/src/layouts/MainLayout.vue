@@ -43,7 +43,7 @@
             <el-icon><Document /></el-icon>
             <template #title>工单管理</template>
           </el-menu-item>
-          <el-menu-item index="/dispatch" v-if="auth.hasPermission('tenant:workorder:view')">
+          <el-menu-item index="/dispatch" v-if="auth.hasPermission('tenant:workorder:view') && !auth.isSimpleMode">
             <el-icon><List /></el-icon>
             <template #title>派工管理</template>
           </el-menu-item>
@@ -70,6 +70,10 @@
           <el-menu-item index="/reports/technician" v-if="auth.hasPermission('tenant:report:view')">
             <el-icon><TrendCharts /></el-icon>
             <template #title>技师产值</template>
+          </el-menu-item>
+          <el-menu-item index="/reminders" v-if="auth.hasPermission('tenant:workorder:view')">
+            <el-icon><Bell /></el-icon>
+            <template #title>经营提醒</template>
           </el-menu-item>
           <el-menu-item index="/shops" v-if="auth.hasPermission('tenant:shop:view')">
             <el-icon><OfficeBuilding /></el-icon>

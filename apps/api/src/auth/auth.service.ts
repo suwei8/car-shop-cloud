@@ -77,6 +77,7 @@ export class AuthService {
       roles: [...new Set(roles)],
       permissions: [...new Set(permissions)],
       dataScope: user.isPlatform ? undefined : inferDataScope([...new Set(roles)]),
+      audience: 'employee',
     };
 
     const tokens = await this.generateTokens(payload);
@@ -177,6 +178,7 @@ export class AuthService {
       roles: [...new Set(roles)],
       permissions: [...new Set(permissions)],
       dataScope: user.isPlatform ? undefined : inferDataScope([...new Set(roles)]),
+      audience: 'employee',
     };
 
     const tokens = await this.generateTokens(payload);

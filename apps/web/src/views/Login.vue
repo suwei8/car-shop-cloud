@@ -16,6 +16,9 @@
           </el-button>
         </el-form-item>
       </el-form>
+      <div class="register-link">
+        还没有账号？<router-link to="/register">免费试用</router-link>
+      </div>
     </div>
   </div>
 </template>
@@ -77,5 +80,15 @@ async function handleLogin() {
   color: #909399;
   margin-bottom: 30px;
   font-size: 14px;
+}
+.register-link {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 14px;
+  color: #909399;
+}
+.register-link a {
+  color: #409eff;
+  text-decoration: none;
 }
 </style>

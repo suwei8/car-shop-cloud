@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
+import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class ReportService {
@@ -265,5 +266,88 @@ export class ReportService {
         createdAt: t.createdAt,
       })),
     };
+  }
+
+  async exportDailyReport(user: JwtPayload, query: { startDate: string; endDate: string; shopId?: string }): Promise<Buffer> {
+    const data = await this.getDailyReport(user, query);
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('营业日报');
+
+    sheet.columns = [
+      { header: '指标', key: 'label', width: 20 },
+      { header: '数值', key: 'value', width: 20 },
+    ];
+    sheet.getRow(1).font = { bold: true };
+
+    const s = data.summary;
+    sheet.addRows([
+      { label: '工单总数', value: s.totalOrders },
+      { label: '营收总额', value: s.totalRevenue.toFixed(2) },
+      { label: '优惠金额', value: s.totalDiscount.toFixed(2) },
+      { label: '实收金额', value: s.totalPaid.toFixed(2) },
+      { label: '欠款金额', value: s.totalDebt.toFixed(2) },
+      { label: '结算单数', value: s.settlementCount },
+    ]);
+
+    sheet.addRow([]);
+    sheet.addRow({ label: '按状态统计', value: '' });
+    const statusSheet = workbook.addWorksheet('按状态');
+    statusSheet.columns = [
+      { header: '状态', key: 'status', width: 15 },
+      { header: '数量', key: 'count', width: 10 },
+      { header: '金额', key: 'amount', width: 15 },
+    ];
+    statusSheet.getRow(1).font = { bold: true };
+    const statusMap: Record<string, string> = {
+      draft: '草稿', confirmed: '已确认', in_progress: '施工中', completed: '已完成', settled: '已结算', cancelled: '已取消',
+    };
+    for (const o of data.orders) {
+      statusSheet.addRow({ status: statusMap[o.status] || o.status, count: o.count, amount: o.amount.toFixed(2) });
+    }
+
+    const paySheet = workbook.addWorksheet('按支付方式');
+    paySheet.columns = [
+      { header: '支付方式', key: 'method', width: 15 },
+      { header: '笔数', key: 'count', width: 10 },
+      { header: '金额', key: 'amount', width: 15 },
+    ];
+    paySheet.getRow(1).font = { bold: true };
+    const payMap: Record<string, string> = {
+      cash: '现金', wechat: '微信', alipay: '支付宝', card: '银行卡', stored_value: '储值卡', package_card: '套餐卡',
+    };
+    for (const p of data.payments) {
+      paySheet.addRow({ method: payMap[p.method] || p.method, count: p.count, amount: p.amount.toFixed(2) });
+    }
+
+    return workbook.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+  }
+
+  async exportTechnicianReport(user: JwtPayload, query: { startDate: string; endDate: string }): Promise<Buffer> {
+    const data = await this.getTechnicianReport(user, query);
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('技师产值');
+
+    sheet.columns = [
+      { header: '排名', key: 'rank', width: 8 },
+      { header: '技师', key: 'name', width: 15 },
+      { header: '总任务数', key: 'totalTasks', width: 12 },
+      { header: '已完成', key: 'completedTasks', width: 12 },
+      { header: '完成率', key: 'rate', width: 12 },
+      { header: '产值金额', key: 'amount', width: 15 },
+    ];
+    sheet.getRow(1).font = { bold: true };
+
+    data.forEach((t, i) => {
+      sheet.addRow({
+        rank: i + 1,
+        name: t.technicianName,
+        totalTasks: t.totalTasks,
+        completedTasks: t.completedTasks,
+        rate: t.totalTasks > 0 ? `${((t.completedTasks / t.totalTasks) * 100).toFixed(0)}%` : '0%',
+        amount: t.totalAmount.toFixed(2),
+      });
+    });
+
+    return workbook.xlsx.writeBuffer() as unknown as Promise<Buffer>;
   }
 }

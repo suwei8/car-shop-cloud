@@ -215,4 +215,24 @@ export interface DashboardOverview {
   todayAppointments: number;
   pendingDispatch: number;
   lowStockCount: number;
+  pendingReminders: number;
+}
+
+export interface Reminder {
+  id: string;
+  tenantId: string;
+  shopId: string | null;
+  type: string;
+  customerId: string;
+  vehicleId: string | null;
+  relatedId: string | null;
+  content: string;
+  dueDate: string;
+  status: string;
+  handledBy: string | null;
+  handledAt: string | null;
+  remark: string | null;
+  createdAt: string;
+  customer?: { id: string; name: string; phone: string };
+  vehiclePlateNo?: string | null;
 }

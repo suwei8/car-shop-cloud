@@ -5,6 +5,7 @@ import { validateTransition } from './work-order.state-machine';
 import { StockService } from '../stock/stock.service';
 import { applyDataScope } from '../../common/utils/scope-where';
 import { NotificationService } from '../../notification/notification.service';
+import { FeatureFlagService } from '../../platform/feature-flag/feature-flag.service';
 
 @Injectable()
 export class WorkOrderService {
@@ -12,6 +13,7 @@ export class WorkOrderService {
     private prisma: PrismaService,
     private stockService: StockService,
     private notificationService: NotificationService,
+    private featureFlagService: FeatureFlagService,
   ) {}
 
   async findAll(user: JwtPayload, query: { page?: number; pageSize?: number; status?: string; shopId?: string; orderType?: string; customerId?: string; vehicleId?: string }) {
@@ -117,10 +119,19 @@ export class WorkOrderService {
 
   async updateStatus(id: string, status: string, user: JwtPayload) {
     const order = await this.findOne(id, user);
-    validateTransition(order.status, status);
+
+    // 查询当前租户是否开启简易模式
+    const simpleMode = await this.featureFlagService.isFlagEnabled(user.tenantId!, 'simple_mode');
+
+    validateTransition(order.status, status, simpleMode);
 
     const result = await this.prisma.$transaction(async (tx) => {
-      if (status === 'in_progress' && order.status !== 'in_progress') {
+      // 普通模式：in_progress 时扣减库存
+      // 简易模式：completed 时扣减库存（跳过 in_progress）
+      const shouldDeductInInProgress = status === 'in_progress' && order.status !== 'in_progress' && !simpleMode;
+      const shouldDeductInCompleted = status === 'completed' && simpleMode;
+
+      if (shouldDeductInInProgress || shouldDeductInCompleted) {
         await this.stockService.deductForWorkOrder(
           tx, user.tenantId!, order.shopId, id, user.sub,
         );

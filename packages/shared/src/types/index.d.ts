@@ -20,5 +20,8 @@ export interface JwtPayload {
     isPlatform: boolean;
     roles: string[];
     permissions: string[];
+    dataScope?: 'self' | 'shop' | 'all';
+    audience?: 'employee' | 'customer';
+    customerId?: string;
 }
 export type Cents = number;

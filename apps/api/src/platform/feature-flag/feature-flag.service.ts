@@ -27,4 +27,26 @@ export class FeatureFlagService {
       include: { featureFlag: true },
     });
   }
+
+  async getTenantFlagsAsMap(tenantId: string): Promise<Record<string, boolean>> {
+    const flags = await this.prisma.tenantFeatureFlag.findMany({
+      where: { tenantId },
+      include: { featureFlag: true },
+    });
+    const result: Record<string, boolean> = {};
+    for (const f of flags) {
+      result[f.featureFlag.code] = f.enabled;
+    }
+    return result;
+  }
+
+  async isFlagEnabled(tenantId: string, flagCode: string): Promise<boolean> {
+    const flag = await this.prisma.tenantFeatureFlag.findFirst({
+      where: {
+        tenantId,
+        featureFlag: { code: flagCode },
+      },
+    });
+    return flag?.enabled ?? false;
+  }
 }

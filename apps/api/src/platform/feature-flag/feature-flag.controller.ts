@@ -4,17 +4,27 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { FeatureFlagService } from './feature-flag.service';
-import { Roles, RequirePermissions } from '../../common/decorators';
+import { Roles, RequirePermissions, CurrentUser, TenantRequired } from '../../common/decorators';
 import { CreateFeatureFlagDto, SetTenantFlagDto } from './dto/feature-flag.dto';
+import { JwtPayload } from '@car/shared';
 
 @ApiTags('platform/feature-flags')
 @ApiBearerAuth()
-@Controller('platform/feature-flags')
-@Roles('platform_admin')
+@Controller('feature-flags')
 export class FeatureFlagController {
   constructor(private service: FeatureFlagService) {}
 
+  // ---- 商户端：查询当前租户的 flags ----
+  @Get('my')
+  @TenantRequired()
+  @ApiOperation({ summary: '查询当前租户的功能开关' })
+  async getMyFlags(@CurrentUser() user: JwtPayload) {
+    return this.service.getTenantFlagsAsMap(user.tenantId!);
+  }
+
+  // ---- 平台端（需 platform_admin）----
   @Get()
+  @Roles('platform_admin')
   @RequirePermissions('platform:feature:manage')
   @ApiOperation({ summary: '功能开关列表' })
   findAll() {
@@ -22,6 +32,7 @@ export class FeatureFlagController {
   }
 
   @Post()
+  @Roles('platform_admin')
   @RequirePermissions('platform:feature:manage')
   @ApiOperation({ summary: '创建功能开关' })
   create(@Body() dto: CreateFeatureFlagDto) {
@@ -29,6 +40,7 @@ export class FeatureFlagController {
   }
 
   @Post(':tenantId/:flagId')
+  @Roles('platform_admin')
   @RequirePermissions('platform:feature:manage')
   @ApiOperation({ summary: '设置商户功能开关' })
   setTenantFlag(

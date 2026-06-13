@@ -45,6 +45,7 @@ declare module 'vue' {
     ElTag: typeof import('element-plus/es')['ElTag']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    TrialBanner: typeof import('./src/components/TrialBanner.vue')['default']
     VehicleModelInput: typeof import('./src/components/VehicleModelInput.vue')['default']
   }
   export interface ComponentCustomProperties {

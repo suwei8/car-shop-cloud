@@ -10,6 +10,7 @@
       </el-form-item>
       <el-form-item>
         <el-button type="primary" @click="fetchReport">查询</el-button>
+        <el-button @click="exportReport">导出 Excel</el-button>
       </el-form-item>
     </el-form>
 
@@ -36,6 +37,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { ElMessage } from 'element-plus';
 import api from '../../utils/api';
 
 const report = ref<any[]>([]);
@@ -51,6 +53,26 @@ async function fetchReport() {
     }) as any;
   } finally {
     loading.value = false;
+  }
+}
+
+async function exportReport() {
+  if (!dateRange.value || dateRange.value.length !== 2) return;
+  try {
+    const res = await api.get('/reports/technician/export', {
+      params: { startDate: dateRange.value[0], endDate: dateRange.value[1] },
+      responseType: 'blob',
+    });
+    const blob = new Blob([res as unknown as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `技师产值_${dateRange.value[0]}_${dateRange.value[1]}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    ElMessage.success('导出成功');
+  } catch {
+    ElMessage.error('导出失败');
   }
 }
 

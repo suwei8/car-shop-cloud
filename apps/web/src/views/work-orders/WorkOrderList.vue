@@ -8,12 +8,7 @@
     <el-form :inline="true" style="margin-bottom: 16px">
       <el-form-item>
         <el-select v-model="status" placeholder="状态" clearable>
-          <el-option label="草稿" value="draft" />
-          <el-option label="已报价" value="quoted" />
-          <el-option label="已确认" value="confirmed" />
-          <el-option label="施工中" value="in_progress" />
-          <el-option label="已完成" value="completed" />
-          <el-option label="已结算" value="settled" />
+          <el-option v-for="[k, v] in visibleStatusEntries" :key="k" :label="v" :value="k" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -70,10 +65,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { apiGet } from '../../utils/api';
 import type { WorkOrder } from '../../types/models';
 import type { PaginatedData } from '../../types/api';
+import { useAuthStore } from '../../stores/auth';
+
+const auth = useAuthStore();
+const isSimpleMode = computed(() => auth.isSimpleMode);
 
 const list = ref<WorkOrder[]>([]);
 const loading = ref(false);
@@ -87,6 +86,12 @@ const statusMap: Record<string, string> = {
   draft: '草稿', quoted: '已报价', confirmed: '已确认', dispatching: '派工中',
   in_progress: '施工中', completed: '已完成', settled: '已结算', cancelled: '已取消',
 };
+
+// 简易模式下隐藏不可达状态（派工中）
+const simpleModeHiddenStatuses = new Set(['dispatching']);
+const visibleStatusEntries = computed(() =>
+  Object.entries(statusMap).filter(([k]) => !isSimpleMode.value || !simpleModeHiddenStatuses.has(k))
+);
 
 function statusLabel(s: string) { return statusMap[s] || s; }
 function statusTagType(s: string) {

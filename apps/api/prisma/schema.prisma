@@ -54,6 +54,8 @@ model Tenant {
   packageCards    PackageCard[]
   packageCardItems PackageCardItem[]
   packageCardTransactions PackageCardTransaction[]
+  customerWxBindings CustomerWxBinding[]
+  reminders         Reminder[]
 
   @@map("tenants")
 }
@@ -370,6 +372,8 @@ model Customer {
   appointments Appointment[]
   receptions  Reception[]
   workOrders  WorkOrder[]
+  wxBindings  CustomerWxBinding[]
+  reminders   Reminder[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -934,4 +938,49 @@ model Notification {
   @@index([tenantId, scene])
   @@index([relatedType, relatedId])
   @@map("notifications")
+}
+
+// ==================== 车主微信小程序 ====================
+
+model CustomerWxBinding {
+  id         String   @id @default(cuid())
+  tenantId   String
+  customerId String
+  openid     String
+  unionid    String?
+  createdAt  DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([tenantId, openid])
+  @@index([customerId])
+  @@index([openid])
+  @@map("customer_wx_bindings")
+}
+
+// ==================== 经营提醒 ====================
+
+model Reminder {
+  id          String    @id @default(cuid())
+  tenantId    String
+  shopId      String?
+  type        String    // maintenance_due, card_expiring, card_low_balance, customer_churn
+  customerId  String
+  vehicleId   String?
+  relatedId   String?   // 套餐卡id 等
+  content     String    // 提醒文案
+  dueDate     DateTime  // 提醒归属日期
+  status      String    @default("pending") // pending, done, ignored
+  handledBy   String?
+  handledAt   DateTime?
+  remark      String?   // 回访结果备注
+  createdAt   DateTime  @default(now())
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  customer    Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([tenantId, type, customerId, vehicleId, relatedId, dueDate])
+  @@index([tenantId, shopId, status, dueDate])
+  @@map("reminders")
 }

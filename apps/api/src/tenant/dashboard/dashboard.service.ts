@@ -25,6 +25,7 @@ export class DashboardService {
       todayAppointments,
       pendingDispatch,
       lowStockItems,
+      pendingReminders,
     ] = await Promise.all([
       this.prisma.workOrder.count({
         where: { tenantId, createdAt: { gte: startOfDay, lt: endOfDay } },
@@ -46,6 +47,9 @@ export class DashboardService {
         where: { tenantId, part: { status: 'active', minStock: { gt: 0 } } },
         include: { part: { select: { minStock: true } } },
       }),
+      this.prisma.reminder.count({
+        where: { tenantId, status: 'pending', dueDate: { gte: startOfDay, lt: endOfDay } },
+      }),
     ]);
 
     const lowStockAlerts = (lowStockItems as any[]).filter(b => Number(b.quantity) <= (b.part.minStock || 0));
@@ -57,6 +61,7 @@ export class DashboardService {
       todayAppointments,
       pendingDispatch,
       lowStockCount: lowStockAlerts.length,
+      pendingReminders,
     };
   }
 
@@ -113,6 +118,7 @@ export class DashboardService {
       todayAppointments: 0,
       pendingDispatch: 0,
       lowStockCount: 0,
+      pendingReminders: 0,
       totalTenants,
       activeTenants,
       totalCustomers,

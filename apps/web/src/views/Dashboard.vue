@@ -1,6 +1,7 @@
 <template>
   <div class="page-container">
     <h2>工作台</h2>
+    <TrialBanner />
     <div v-if="loading" v-loading="true" style="min-height: 200px" />
     <el-alert v-else-if="error" :title="error" type="error" show-icon style="margin-bottom: 16px" />
     <template v-else>
@@ -39,6 +40,12 @@
           <el-card shadow="hover" class="stat-card">
             <div class="stat-label">库存预警</div>
             <div class="stat-value danger">{{ overview.lowStockCount }}</div>
+          </el-card>
+        </el-col>
+        <el-col :span="4">
+          <el-card shadow="hover" class="stat-card" style="cursor: pointer" @click="$router.push('/reminders')">
+            <div class="stat-label">今日待回访</div>
+            <div class="stat-value warning">{{ overview.pendingReminders }}</div>
           </el-card>
         </el-col>
       </el-row>
@@ -98,6 +105,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { apiGet } from '../utils/api';
 import type { WorkOrder, Appointment, DashboardOverview } from '../types/models';
+import TrialBanner from '../components/TrialBanner.vue';
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -109,6 +117,7 @@ const overview = reactive<DashboardOverview>({
   todayAppointments: 0,
   pendingDispatch: 0,
   lowStockCount: 0,
+  pendingReminders: 0,
 });
 const recentOrders = ref<WorkOrder[]>([]);
 const todayAppointments = ref<Appointment[]>([]);

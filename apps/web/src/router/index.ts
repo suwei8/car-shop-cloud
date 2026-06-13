@@ -11,6 +11,12 @@ const router = createRouter({
       meta: { public: true },
     },
     {
+      path: '/register',
+      name: 'Register',
+      component: () => import('../views/Register.vue'),
+      meta: { public: true },
+    },
+    {
       path: '/',
       component: () => import('../layouts/MainLayout.vue'),
       redirect: '/dashboard',
@@ -111,6 +117,18 @@ const router = createRouter({
           name: 'TechnicianReport',
           component: () => import('../views/reports/TechnicianReport.vue'),
           meta: { title: '技师产值', permission: 'tenant:report:view' },
+        },
+        {
+          path: 'reminders',
+          name: 'Reminders',
+          component: () => import('../views/reminders/ReminderList.vue'),
+          meta: { title: '经营提醒', permission: 'tenant:workorder:view' },
+        },
+        {
+          path: 'system/data-import',
+          name: 'DataImport',
+          component: () => import('../views/system/DataImport.vue'),
+          meta: { title: '数据导入', permission: 'tenant:customer:create' },
         },
         // 平台后台
         {

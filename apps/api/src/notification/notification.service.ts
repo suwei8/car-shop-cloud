@@ -1,20 +1,24 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SmsProvider, maskPhone } from './providers/sms.provider';
 import { MockSmsProvider } from './providers/mock-sms.provider';
 import { AliyunSmsProvider } from './providers/aliyun-sms.provider';
+import { WechatMpProvider } from './providers/wechat-mp.provider';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
   private smsProvider: SmsProvider;
+  private wechatMpProvider: WechatMpProvider;
 
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    @Optional() wechatMpProvider?: WechatMpProvider,
   ) {
     this.smsProvider = this.createSmsProvider();
+    this.wechatMpProvider = wechatMpProvider || new WechatMpProvider(config, prisma);
   }
 
   private createSmsProvider(): SmsProvider {
@@ -90,6 +94,37 @@ export class NotificationService {
             data: { status: 'failed', failReason: result.error || 'unknown' },
           });
           this.logger.warn(`Notification failed: ${notification.id}, reason: ${result.error}`);
+          return { id: notification.id, status: 'failed' };
+        }
+      }
+
+      if (input.channel === 'wechat_mp') {
+        const templateId = this.config.get<string>(`WX_TPL_${input.scene.toUpperCase()}`);
+        if (!templateId) {
+          await this.prisma.notification.update({
+            where: { id: notification.id },
+            data: { status: 'skipped', failReason: '微信订阅消息模板未配置' },
+          });
+          return { id: notification.id, status: 'skipped' };
+        }
+
+        const result = await this.wechatMpProvider.sendSubscribeMessage({
+          openid: input.recipient,
+          templateId,
+          data: { thing1: { value: input.content } },
+        });
+
+        if (result.ok) {
+          await this.prisma.notification.update({
+            where: { id: notification.id },
+            data: { status: 'sent', sentAt: new Date() },
+          });
+          return { id: notification.id, status: 'sent' };
+        } else {
+          await this.prisma.notification.update({
+            where: { id: notification.id },
+            data: { status: 'failed', failReason: result.error || 'unknown' },
+          });
           return { id: notification.id, status: 'failed' };
         }
       }
@@ -173,5 +208,43 @@ export class NotificationService {
       },
     });
     return !!existing;
+  }
+
+  async sendWechatMpOrFallback(input: {
+    tenantId: string;
+    shopId?: string;
+    customerId: string;
+    scene: string;
+    phone: string;
+    content: string;
+    relatedType?: string;
+    relatedId?: string;
+  }): Promise<void> {
+    const openid = await this.wechatMpProvider.lookupOpenid(input.tenantId, input.customerId);
+    if (openid) {
+      const result = await this.send({
+        tenantId: input.tenantId,
+        shopId: input.shopId,
+        channel: 'wechat_mp',
+        scene: input.scene,
+        recipient: openid,
+        content: input.content,
+        relatedType: input.relatedType,
+        relatedId: input.relatedId,
+      });
+      if (result.status === 'sent') return;
+      this.logger.warn(`WeChat MP notification failed, falling back to SMS: ${result.status}`);
+    }
+
+    await this.send({
+      tenantId: input.tenantId,
+      shopId: input.shopId,
+      channel: 'sms',
+      scene: input.scene,
+      recipient: input.phone,
+      content: input.content,
+      relatedType: input.relatedType,
+      relatedId: input.relatedId,
+    });
   }
 }
