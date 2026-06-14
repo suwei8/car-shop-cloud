@@ -125,10 +125,34 @@ const router = createRouter({
           meta: { title: '经营提醒', permission: 'tenant:workorder:view' },
         },
         {
+          path: 'subscription',
+          name: 'Subscription',
+          component: () => import('../views/subscription/SubscriptionManage.vue'),
+          meta: { title: '套餐管理' },
+        },
+        {
           path: 'system/data-import',
           name: 'DataImport',
           component: () => import('../views/system/DataImport.vue'),
           meta: { title: '数据导入', permission: 'tenant:customer:create' },
+        },
+        {
+          path: 'analytics',
+          name: 'Analytics',
+          component: () => import('../views/analytics/AnalyticsDashboard.vue'),
+          meta: { title: '数据分析', permission: 'tenant:report:view' },
+        },
+        {
+          path: 'marketing/campaigns',
+          name: 'CampaignManage',
+          component: () => import('../views/marketing/CampaignManage.vue'),
+          meta: { title: '短信营销', permission: 'tenant:marketing:manage' },
+        },
+        {
+          path: 'marketing/coupons',
+          name: 'CouponManage',
+          component: () => import('../views/marketing/CouponManage.vue'),
+          meta: { title: '优惠券管理', permission: 'tenant:marketing:manage' },
         },
         // 平台后台
         {

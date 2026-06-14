@@ -31,7 +31,7 @@
     </view>
 
     <!-- 📢 移动端派工指派管理 (对标“百易云修”车间派工) -->
-    <view class="section premium-card" v-if="!dispatchTask && ['draft', 'confirmed', 'dispatching'].includes(order.status)">
+    <view class="section premium-card" v-if="!simpleMode && !dispatchTask && ['draft', 'confirmed', 'dispatching'].includes(order.status)">
       <view class="section-title">
         <text class="prefix">📢</text>
         <text>车间派工与技师分配</text>
@@ -209,6 +209,11 @@
       </view>
     </view>
 
+    <!-- 简易模式：一键完工 -->
+    <view class="simple-bar-section" v-if="simpleMode && ['dispatching', 'in_progress'].includes(order.status)">
+      <button class="btn-quick-complete pulse-glow font-bold" @tap="quickCompleteOrder">一键完工</button>
+    </view>
+
     <!-- 移动端收款结算操作条 -->
     <view class="settle-bar-section" v-if="order.status === 'completed'">
       <button class="btn-settle pulse-glow font-bold" @tap="openSettleModal">收款记账结算</button>
@@ -289,6 +294,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { request } from '../../utils/request';
+import { useAuthStore } from '../../stores/auth';
+
+const auth = useAuthStore();
+const simpleMode = computed(() => auth.simpleMode);
 
 const order = ref<any>(null);
 const dispatchTask = ref<any>(null);
@@ -565,6 +574,32 @@ const statusMap: Record<string, string> = {
   draft: '接单草稿', confirmed: '已确认待施工', dispatching: '待派工指派', in_progress: '车间施工中', completed: '完工待结算', settled: '收银已结算',
 };
 function statusLabel(s: string) { return statusMap[s] || s; }
+
+async function quickCompleteOrder() {
+  uni.showModal({
+    title: '一键完工',
+    content: `确定将工单 ${order.value?.orderNo} 标记为完工？`,
+    success: async (res) => {
+      if (!res.confirm) return;
+      const token = uni.getStorageSync('accessToken');
+      try {
+        const woRes: any = await request({
+          url: `/api/work-orders/${orderId}/complete`,
+          method: 'PUT',
+          header: { Authorization: `Bearer ${token}` },
+        });
+        if (woRes.data?.code === 0) {
+          uni.showToast({ title: '已完工', icon: 'success' });
+          await fetchOrderDetails();
+        } else {
+          throw new Error(woRes.data?.message || '操作失败');
+        }
+      } catch (err: any) {
+        uni.showToast({ title: err.message || '完工失败', icon: 'none' });
+      }
+    }
+  });
+}
 
 function callPhone(phone: string) {
   if (phone) uni.makePhoneCall({ phoneNumber: phone });
@@ -1075,6 +1110,24 @@ onMounted(async () => {
   text-align: center; 
   border: none; 
   box-shadow: 0 4rpx 16rpx rgba(16,185,129,0.3); 
+  width: 100%;
+}
+
+/* 简易模式一键完工 */
+.simple-bar-section {
+  margin-top: 30rpx;
+  padding: 0 10rpx;
+}
+.btn-quick-complete {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #fff;
+  font-size: 30rpx;
+  border-radius: 45rpx;
+  height: 90rpx;
+  line-height: 90rpx;
+  text-align: center;
+  border: none;
+  box-shadow: 0 4rpx 16rpx rgba(245,158,11,0.3);
   width: 100%;
 }
 .text-danger { color: #f43f5e; }

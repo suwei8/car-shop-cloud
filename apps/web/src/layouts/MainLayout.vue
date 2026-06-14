@@ -75,6 +75,18 @@
             <el-icon><Bell /></el-icon>
             <template #title>经营提醒</template>
           </el-menu-item>
+          <el-menu-item index="/analytics" v-if="auth.hasPermission('tenant:report:view')">
+            <el-icon><TrendCharts /></el-icon>
+            <template #title>数据分析</template>
+          </el-menu-item>
+          <el-menu-item index="/marketing/campaigns" v-if="auth.hasPermission('tenant:marketing:manage')">
+            <el-icon><Promotion /></el-icon>
+            <template #title>短信营销</template>
+          </el-menu-item>
+          <el-menu-item index="/marketing/coupons" v-if="auth.hasPermission('tenant:marketing:manage')">
+            <el-icon><Discount /></el-icon>
+            <template #title>优惠券管理</template>
+          </el-menu-item>
           <el-menu-item index="/shops" v-if="auth.hasPermission('tenant:shop:view')">
             <el-icon><OfficeBuilding /></el-icon>
             <template #title>门店管理</template>
@@ -86,6 +98,10 @@
           <el-menu-item index="/roles" v-if="auth.hasPermission('tenant:role:view')">
             <el-icon><Key /></el-icon>
             <template #title>角色权限</template>
+          </el-menu-item>
+          <el-menu-item index="/subscription">
+            <el-icon><CreditCard /></el-icon>
+            <template #title>套餐管理</template>
           </el-menu-item>
         </template>
       </el-menu>

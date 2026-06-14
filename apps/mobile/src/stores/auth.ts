@@ -22,6 +22,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => !!token.value);
 
+  // Feature flags
+  const simpleMode = ref(false);
+  const flagsLoaded = ref(false);
+
   async function login(phone: string, password: string) {
     const res: any = await request({
       url: '/api/auth/login',
@@ -37,6 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
       uni.setStorageSync('accessToken', data.accessToken);
       uni.setStorageSync('refreshToken', data.refreshToken);
       uni.setStorageSync('userInfo', JSON.stringify(data.user));
+      await fetchFeatureFlags();
       return true;
     }
     return false;
@@ -46,6 +51,8 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = '';
     refreshTokenValue.value = '';
     user.value = null;
+    simpleMode.value = false;
+    flagsLoaded.value = false;
     uni.removeStorageSync('accessToken');
     uni.removeStorageSync('refreshToken');
     uni.removeStorageSync('userInfo');
@@ -74,5 +81,22 @@ export const useAuthStore = defineStore('auth', () => {
     return false;
   }
 
-  return { token, refreshTokenValue, user, isLoggedIn, login, logout, refresh };
+  async function fetchFeatureFlags() {
+    if (!token.value || !user.value?.tenantId) return;
+    try {
+      const res: any = await request({
+        url: '/api/feature-flags/my',
+        method: 'GET',
+        header: { Authorization: `Bearer ${token.value}` },
+      });
+      if (res.data?.code === 0 && res.data.data) {
+        simpleMode.value = !!res.data.data.simple_mode;
+        flagsLoaded.value = true;
+      }
+    } catch {
+      flagsLoaded.value = true;
+    }
+  }
+
+  return { token, refreshTokenValue, user, isLoggedIn, simpleMode, flagsLoaded, login, logout, refresh, fetchFeatureFlags };
 });

@@ -13,21 +13,33 @@
       }
     },
     {
+      "path": "pages/workorder/list",
+      "style": {
+        "navigationBarTitleText": "工单管理"
+      }
+    },
+    {
       "path": "pages/tasks/tasks",
       "style": {
         "navigationBarTitleText": "我的派工"
       }
     },
     {
-      "path": "pages/workorder/detail",
-      "style": {
-        "navigationBarTitleText": "工单详情"
-      }
-    },
-    {
       "path": "pages/member/card",
       "style": {
         "navigationBarTitleText": "储值卡管理"
+      }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationBarTitleText": "个人中心"
+      }
+    },
+    {
+      "path": "pages/workorder/detail",
+      "style": {
+        "navigationBarTitleText": "工单详情"
       }
     },
     {
@@ -43,12 +55,6 @@
       }
     },
     {
-      "path": "pages/profile/profile",
-      "style": {
-        "navigationBarTitleText": "个人中心"
-      }
-    },
-    {
       "path": "pages/notifications/notifications",
       "style": {
         "navigationBarTitleText": "消息通知"
@@ -60,5 +66,37 @@
     "navigationBarTitleText": "车店云管家",
     "navigationBarBackgroundColor": "#ffffff",
     "backgroundColor": "#f5f5f5"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#3b82f6",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "工作台",
+        "iconPath": "static/tabs/home.png",
+        "selectedIconPath": "static/tabs/home.png"
+      },
+      {
+        "pagePath": "pages/workorder/list",
+        "text": "工单",
+        "iconPath": "static/tabs/work.png",
+        "selectedIconPath": "static/tabs/work.png"
+      },
+      {
+        "pagePath": "pages/member/card",
+        "text": "客户",
+        "iconPath": "static/tabs/customer.png",
+        "selectedIconPath": "static/tabs/customer.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "static/tabs/profile.png",
+        "selectedIconPath": "static/tabs/profile.png"
+      }
+    ]
   }
 }

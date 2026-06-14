@@ -32,10 +32,26 @@
       <el-table-column label="金额" width="120">
         <template #default="{ row }">¥{{ Number(row.amount).toFixed(2) }}</template>
       </el-table-column>
+      <el-table-column label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="referenceNo" label="流水号" />
       <el-table-column prop="remark" label="备注" />
       <el-table-column prop="createdAt" label="时间" width="180">
         <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="100" fixed="right">
+        <template #default="{ row }">
+          <el-button
+            v-if="canRefund(row)"
+            type="danger"
+            link
+            size="small"
+            @click="openRefund(row)"
+          >退款</el-button>
+        </template>
       </el-table-column>
     </el-table>
 
@@ -48,16 +64,25 @@
       @current-change="(p: number) => { page = p; fetchList(); }"
       layout="total, prev, pager, next"
     />
+
+    <RefundDialog
+      v-model="showRefund"
+      :settlement-id="refundTarget.settlementId"
+      :payment-id="refundTarget.paymentId"
+      :max-refundable="refundTarget.maxRefundable"
+      @success="fetchList"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { apiGet } from '../../utils/api';
 import type { Payment } from '../../types/models';
 import type { PaginatedData } from '../../types/api';
+import RefundDialog from './components/RefundDialog.vue';
 
-const list = ref<(Payment & { settlement?: { settleNo: string; workOrderId: string } })[]>([]);
+const list = ref<(Payment & { settlement?: { settleNo: string; workOrderId: string }; status?: string; refundAmount?: number })[]>([]);
 const loading = ref(false);
 const page = ref(1);
 const pageSize = 20;
@@ -65,11 +90,41 @@ const total = ref(0);
 const payMethod = ref('');
 const dateRange = ref<string[]>([]);
 
+const showRefund = ref(false);
+const refundTarget = reactive({ settlementId: '', paymentId: '', maxRefundable: 0 });
+
 const payMethodMap: Record<string, string> = {
   cash: '现金', wechat: '微信', alipay: '支付宝', card: '银行卡',
   stored_value: '储值卡', package_card: '套餐卡',
 };
 function payMethodLabel(m: string) { return payMethodMap[m] || m; }
+
+const statusMap: Record<string, string> = {
+  pending: '待支付', paid: '已支付', refunding: '退款中',
+  refunded: '已退款', partially_refunded: '部分退款', failed: '失败',
+};
+function statusLabel(s: string) { return statusMap[s] || s || '-'; }
+
+function statusTagType(s: string): string {
+  const map: Record<string, string> = {
+    pending: 'warning', paid: 'success', refunded: 'info',
+    partially_refunded: 'warning', failed: 'danger',
+  };
+  return map[s] || '';
+}
+
+function canRefund(row: any): boolean {
+  const onlineMethods = ['wechat', 'alipay'];
+  return onlineMethods.includes(row.payMethod) &&
+    ['paid', 'partially_refunded'].includes(row.status || 'paid');
+}
+
+function openRefund(row: any) {
+  refundTarget.settlementId = row.settlementId;
+  refundTarget.paymentId = row.id;
+  refundTarget.maxRefundable = Number(row.amount) - Number(row.refundAmount || 0);
+  showRefund.value = true;
+}
 
 async function fetchList() {
   loading.value = true;
@@ -80,7 +135,7 @@ async function fetchList() {
       params.startDate = dateRange.value[0];
       params.endDate = dateRange.value[1];
     }
-    const res = await apiGet<PaginatedData<Payment & { settlement?: { settleNo: string; workOrderId: string } }>>('/settlements/payments', { params });
+    const res = await apiGet<PaginatedData<any>>('/settlements/payments', { params });
     list.value = res.items;
     total.value = res.total;
   } finally {

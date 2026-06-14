@@ -11,7 +11,14 @@
       <view :class="['tab', status === 'completed' ? 'active' : '']" @tap="status = 'completed'">已完成</view>
     </view>
 
-    <view class="list">
+    <scroll-view
+      class="list"
+      scroll-y
+      refresher-enabled
+      :refresher-triggered="refreshing"
+      @refresherrefresh="onRefresh"
+      @scrolltolower="onLoadMore"
+    >
       <view class="card" v-for="task in tasks" :key="task.id" @tap="goDetail(task)">
         <view class="card-header">
           <text class="order-no">{{ task.workOrder?.orderNo }}</text>
@@ -30,10 +37,13 @@
         </view>
       </view>
 
-      <view class="empty" v-if="tasks.length === 0">
+      <view class="loading-more" v-if="loading">
+        <text class="loading-text">加载中...</text>
+      </view>
+      <view class="empty" v-if="tasks.length === 0 && !loading">
         <text>暂无任务</text>
       </view>
-    </view>
+    </scroll-view>
   </view>
 </template>
 
@@ -43,13 +53,17 @@ import { request } from '../../utils/request';
 
 const tasks = ref<any[]>([]);
 const status = ref('');
+const refreshing = ref(false);
+const loading = ref(false);
 
 const statusMap: Record<string, string> = {
   pending: '待处理', in_progress: '进行中', paused: '已暂停', completed: '已完成',
 };
 function statusLabel(s: string) { return statusMap[s] || s; }
 
-async function fetchTasks() {
+async function fetchTasks(isRefresh = false) {
+  if (loading.value && !isRefresh) return;
+  loading.value = true;
   const token = uni.getStorageSync('accessToken');
   const params = status.value ? `?status=${status.value}` : '';
   const res: any = await request({
@@ -60,13 +74,24 @@ async function fetchTasks() {
   if (res.data?.code === 0) {
     tasks.value = res.data.data;
   }
+  loading.value = false;
+  refreshing.value = false;
+}
+
+function onRefresh() {
+  refreshing.value = true;
+  fetchTasks(true);
+}
+
+function onLoadMore() {
+  // Tasks API returns all at once currently, placeholder for future pagination
 }
 
 function goDetail(task: any) {
   uni.navigateTo({ url: `/pages/workorder/detail?id=${task.workOrderId}` });
 }
 
-watch(status, fetchTasks);
+watch(status, () => fetchTasks());
 onMounted(() => {
   const pages = getCurrentPages();
   if (pages.length > 0) {
@@ -74,7 +99,7 @@ onMounted(() => {
     const opts = page.$page?.options || page.options || {};
     if (opts.status) {
       status.value = opts.status;
-      return; // Setting status.value will trigger watch -> fetchTasks
+      return;
     }
   }
   fetchTasks();
@@ -100,6 +125,8 @@ onMounted(() => {
 .type { font-size: 24rpx; color: #999; }
 .card-footer { font-size: 24rpx; color: #666; }
 .empty { text-align: center; padding: 100rpx 0; color: #999; }
+.loading-more { text-align: center; padding: 20rpx; }
+.loading-text { color: #999; font-size: 24rpx; }
 
 /* 派工工位与班组样式 */
 .task-allocation-info { display: flex; gap: 16rpx; margin-bottom: 12rpx; flex-wrap: wrap; }

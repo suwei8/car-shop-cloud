@@ -97,6 +97,16 @@
             <input class="input plate-input" v-model="form.plateNo" type="text" placeholder="例如：粤B88888" />
           </view>
 
+          <view class="form-item border-glow">
+            <text class="label">VIN码</text>
+            <view class="vin-row">
+              <input class="input vin-input" v-model="form.vin" type="text" placeholder="可扫码自动填入" />
+              <view class="scan-btn" @tap="scanVin">
+                <text class="scan-icon">📷</text>
+              </view>
+            </view>
+          </view>
+
           <view class="form-item">
             <text class="label">车主姓名 *</text>
             <input class="input" v-model="form.customerName" type="text" placeholder="请输入车主姓名" />
@@ -366,6 +376,7 @@ const form = ref({
   brandModel: '',
   mileage: '',
   description: '',
+  vin: '',
 });
 
 const submitting = ref(false);
@@ -708,6 +719,22 @@ function previewImage(url: string) {
   uni.previewImage({ urls: [url] });
 }
 
+function scanVin() {
+  uni.scanCode({
+    onlyFromCamera: false,
+    scanType: ['qrCode', 'barCode'],
+    success: (res) => {
+      if (res.result) {
+        form.value.vin = res.result.toUpperCase();
+        uni.showToast({ title: 'VIN扫码成功', icon: 'success' });
+      }
+    },
+    fail: () => {
+      uni.showToast({ title: '扫码取消', icon: 'none' });
+    }
+  });
+}
+
 // 报价接车提交
 async function submitOrder() {
   if (!form.value.mileage) {
@@ -1016,6 +1043,31 @@ onLoad(async (options: any) => {
   color: #3b82f6;
   font-size: 30rpx;
   letter-spacing: 1rpx;
+}
+.vin-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.vin-input {
+  flex: 1;
+  font-size: 26rpx;
+  text-align: right;
+  color: #ffffff;
+}
+.scan-btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1rpx solid #3b82f6;
+  border-radius: 12rpx;
+}
+.scan-icon {
+  font-size: 28rpx;
 }
 .picker-val { 
   flex: 1; 

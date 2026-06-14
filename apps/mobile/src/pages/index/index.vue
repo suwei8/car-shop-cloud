@@ -18,11 +18,10 @@ import { ref, onMounted } from 'vue';
 const userName = ref('员工');
 
 const menuItems = [
-  { icon: '📋', title: '我的派工', path: '/pages/tasks/tasks' },
-  { icon: '🔍', title: '查车', path: '/pages/search/search' },
+  { icon: '📋', title: '工单管理', path: '/pages/workorder/list' },
   { icon: '📝', title: '接待开单', path: '/pages/workorder/create' },
-  { icon: '📸', title: '施工拍照', path: '/pages/tasks/tasks?status=in_progress' },
-  { icon: '✅', title: '完工确认', path: '/pages/tasks/tasks?status=in_progress' },
+  { icon: '🔍', title: '查车', path: '/pages/search/search' },
+  { icon: '🔧', title: '我的派工', path: '/pages/tasks/tasks' },
   { icon: '💳', title: '储值卡管理', path: '/pages/member/card' },
   { icon: '🔔', title: '消息通知', path: '/pages/notifications/notifications' },
   { icon: '👤', title: '个人中心', path: '/pages/profile/profile' },
