@@ -8,6 +8,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { SmsCodeService } from './sms-code.service';
 import { RegistrationService } from './registration.service';
 import { RegistrationController } from './registration.controller';
+import { WechatLoginService } from './wechat-login.service';
 import { PlatformTenantModule } from '../platform/tenant/tenant.module';
 import { NotificationModule } from '../notification/notification.module';
 
@@ -43,6 +44,7 @@ import { NotificationModule } from '../notification/notification.module';
     JwtStrategy,
     SmsCodeService,
     RegistrationService,
+    WechatLoginService,
   ],
   exports: [AuthService, SmsCodeService],
 })

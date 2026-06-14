@@ -83,7 +83,7 @@ describe('NotificationService', () => {
   it('should skip unsupported channel', async () => {
     const result = await service.send({
       tenantId: 'tenant-1',
-      channel: 'wechat_mp',
+      channel: 'unknown_channel',
       scene: 'work_order_completed',
       recipient: 'user-1',
       content: '测试',

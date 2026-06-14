@@ -1,5 +1,5 @@
-import { IsString, MinLength, Matches } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, MinLength, Matches, IsOptional, IsIn, IsInt, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsStrongPassword } from '../../common/validators/password.validator';
 
 export class SendCodeDto {
@@ -25,8 +25,19 @@ export class RegisterDto {
   @MinLength(6, { message: '验证码至少6位' })
   code: string;
 
-  @ApiProperty({ example: 'Abc12345' })
+  @ApiPropertyOptional({ example: 'Abc12345', description: '密码（可选，小程序可不传）' })
+  @IsOptional()
   @IsString()
   @IsStrongPassword()
-  password: string;
+  password?: string;
+
+  @ApiProperty({ example: 'repair', enum: ['repair', 'wash_beauty', 'composite'] })
+  @IsString()
+  @IsIn(['repair', 'wash_beauty', 'composite'], { message: '经营类型必须为 repair/wash_beauty/composite' })
+  businessType: string;
+
+  @ApiProperty({ example: 3 })
+  @IsInt()
+  @Min(1, { message: '员工数至少为1' })
+  employeeCount: number;
 }

@@ -274,6 +274,96 @@ export class StockService {
     }
   }
 
+  /**
+   * 工单作废回滚库存（事务内调用）
+   * 查找该工单已生成的出库流水，生成反向入库流水回滚库存；幂等。
+   */
+  async reverseDeductForWorkOrder(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    shopId: string,
+    workOrderId: string,
+    operatorId: string,
+  ): Promise<void> {
+    // 幂等：检查是否已有回滚入库单
+    const existingReverseBill = await tx.stockBill.findFirst({
+      where: { tenantId, relatedType: 'work_order', relatedId: workOrderId, billType: 'in' },
+    });
+    if (existingReverseBill) return;
+
+    // 查找该工单的出库单
+    const outBill = await tx.stockBill.findFirst({
+      where: { tenantId, relatedType: 'work_order', relatedId: workOrderId, billType: 'out' },
+      include: { items: true },
+    });
+    if (!outBill || outBill.items.length === 0) return;
+
+    const warehouse = await tx.warehouse.findFirst({
+      where: { tenantId, shopId, isDefault: true },
+    });
+    if (!warehouse) return;
+
+    const billNo = await this.generateBillNo(tenantId, 'IN', tx);
+    const inBill = await tx.stockBill.create({
+      data: {
+        tenantId,
+        shopId,
+        billNo,
+        billType: 'in',
+        relatedType: 'work_order',
+        relatedId: workOrderId,
+        operatorId,
+        remark: `工单作废回滚（原出库单 ${outBill.billNo}）`,
+        status: 'confirmed',
+        items: {
+          create: outBill.items.map(item => ({
+            tenantId,
+            partId: item.partId,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.unitPrice),
+            amount: Number(item.amount),
+          })),
+        },
+      },
+      include: { items: true },
+    });
+
+    for (const item of inBill.items) {
+      const balance = await tx.stockBalance.findFirst({
+        where: { tenantId, warehouseId: warehouse.id, partId: item.partId },
+      });
+
+      let updated;
+      if (balance) {
+        updated = await tx.stockBalance.update({
+          where: { id: balance.id },
+          data: { quantity: { increment: item.quantity } },
+        });
+      } else {
+        updated = await tx.stockBalance.create({
+          data: { tenantId, warehouseId: warehouse.id, partId: item.partId, quantity: item.quantity },
+        });
+      }
+
+      await tx.stockMovement.create({
+        data: {
+          tenantId,
+          partId: item.partId,
+          warehouseId: warehouse.id,
+          movementType: 'in',
+          quantity: Number(item.quantity),
+          balanceAfter: updated.quantity,
+          billId: inBill.id,
+          billItemId: item.id,
+          relatedType: 'work_order',
+          relatedId: workOrderId,
+          operatorId,
+          remark: `工单作废回滚`,
+        },
+      });
+    }
+  }
+
   // 库存流水查询
   async getMovements(user: JwtPayload, query: { page?: number; pageSize?: number; partId?: string; movementType?: string }) {
     const { page = 1, pageSize = 20, partId, movementType } = query;

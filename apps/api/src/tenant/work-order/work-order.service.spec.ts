@@ -33,6 +33,7 @@ describe('WorkOrderService', () => {
       },
       workOrderItem: {
         createMany: jest.fn(),
+        update: jest.fn(),
       },
       vehicle: {
         findFirst: jest.fn(),
@@ -40,14 +41,21 @@ describe('WorkOrderService', () => {
       sequence: {
         upsert: jest.fn(),
       },
+      part: {
+        findMany: jest.fn(),
+      },
       $transaction: jest.fn(async (fn: any) => fn({
         workOrder: prisma.workOrder,
         workOrderItem: prisma.workOrderItem,
         sequence: prisma.sequence,
+        part: prisma.part,
       })),
     };
 
-    stockService = { deductForWorkOrder: jest.fn() };
+    stockService = {
+      deductForWorkOrder: jest.fn(),
+      reverseDeductForWorkOrder: jest.fn(),
+    };
 
     const notificationService = { send: jest.fn(), skip: jest.fn(), checkDuplicate: jest.fn().mockResolvedValue(false) };
 
@@ -142,7 +150,7 @@ describe('WorkOrderService', () => {
   describe('updateStatus（状态更新）', () => {
     it('通过状态机校验', async () => {
       prisma.workOrder.findFirst.mockResolvedValue({
-        id: 'wo-1', tenantId: 'tenant-1', status: 'draft', shopId: 'shop-1',
+        id: 'wo-1', tenantId: 'tenant-1', status: 'draft', shopId: 'shop-1', items: [],
       });
       prisma.workOrder.update.mockResolvedValue({ id: 'wo-1', status: 'confirmed' });
 
@@ -152,7 +160,7 @@ describe('WorkOrderService', () => {
 
     it('非法状态跳转：抛出异常', async () => {
       prisma.workOrder.findFirst.mockResolvedValue({
-        id: 'wo-1', tenantId: 'tenant-1', status: 'draft', shopId: 'shop-1',
+        id: 'wo-1', tenantId: 'tenant-1', status: 'draft', shopId: 'shop-1', items: [],
       });
 
       await expect(service.updateStatus('wo-1', 'settled', mockUser)).rejects.toThrow();
@@ -160,7 +168,7 @@ describe('WorkOrderService', () => {
 
     it('变为 in_progress 时触发库存扣减', async () => {
       prisma.workOrder.findFirst.mockResolvedValue({
-        id: 'wo-1', tenantId: 'tenant-1', status: 'dispatching', shopId: 'shop-1',
+        id: 'wo-1', tenantId: 'tenant-1', status: 'dispatching', shopId: 'shop-1', items: [],
       });
       prisma.workOrder.update.mockResolvedValue({ id: 'wo-1', status: 'in_progress' });
 
@@ -176,7 +184,7 @@ describe('WorkOrderService', () => {
     it('confirmed → completed：合法，且触发库存扣减', async () => {
       featureFlagService.isFlagEnabled.mockResolvedValue(true);
       prisma.workOrder.findFirst.mockResolvedValue({
-        id: 'wo-1', tenantId: 'tenant-1', status: 'confirmed', shopId: 'shop-1',
+        id: 'wo-1', tenantId: 'tenant-1', status: 'confirmed', shopId: 'shop-1', items: [],
       });
       prisma.workOrder.update.mockResolvedValue({ id: 'wo-1', status: 'completed' });
 
@@ -193,7 +201,7 @@ describe('WorkOrderService', () => {
     it('confirmed → completed：普通模式下非法', async () => {
       featureFlagService.isFlagEnabled.mockResolvedValue(false);
       prisma.workOrder.findFirst.mockResolvedValue({
-        id: 'wo-1', tenantId: 'tenant-1', status: 'confirmed', shopId: 'shop-1',
+        id: 'wo-1', tenantId: 'tenant-1', status: 'confirmed', shopId: 'shop-1', items: [],
       });
 
       await expect(service.updateStatus('wo-1', 'completed', mockUser)).rejects.toThrow();
@@ -202,7 +210,7 @@ describe('WorkOrderService', () => {
     it('in_progress → completed：普通模式下不重复扣库存', async () => {
       featureFlagService.isFlagEnabled.mockResolvedValue(false);
       prisma.workOrder.findFirst.mockResolvedValue({
-        id: 'wo-1', tenantId: 'tenant-1', status: 'in_progress', shopId: 'shop-1',
+        id: 'wo-1', tenantId: 'tenant-1', status: 'in_progress', shopId: 'shop-1', items: [],
       });
       prisma.workOrder.update.mockResolvedValue({ id: 'wo-1', status: 'completed' });
 
@@ -210,6 +218,78 @@ describe('WorkOrderService', () => {
 
       // in_progress → completed 不应再次扣库存（已在 in_progress 时扣过）
       expect(stockService.deductForWorkOrder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateStatus - 作废回滚库存', () => {
+    it('in_progress → cancelled：触发库存回滚', async () => {
+      prisma.workOrder.findFirst.mockResolvedValue({
+        id: 'wo-1', tenantId: 'tenant-1', status: 'in_progress', shopId: 'shop-1', items: [],
+      });
+      prisma.workOrder.update.mockResolvedValue({ id: 'wo-1', status: 'cancelled' });
+
+      await service.updateStatus('wo-1', 'cancelled', mockUser);
+
+      expect(stockService.reverseDeductForWorkOrder).toHaveBeenCalledWith(
+        expect.anything(), 'tenant-1', 'shop-1', 'wo-1', 'user-1',
+      );
+      expect(prisma.workOrder.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'cancelled' } }),
+      );
+    });
+
+    it('draft → cancelled：也触发库存回滚（幂等，无出库单则跳过）', async () => {
+      prisma.workOrder.findFirst.mockResolvedValue({
+        id: 'wo-1', tenantId: 'tenant-1', status: 'draft', shopId: 'shop-1', items: [],
+      });
+      prisma.workOrder.update.mockResolvedValue({ id: 'wo-1', status: 'cancelled' });
+
+      await service.updateStatus('wo-1', 'cancelled', mockUser);
+
+      expect(stockService.reverseDeductForWorkOrder).toHaveBeenCalled();
+    });
+
+    it('completed → cancelled：触发库存回滚', async () => {
+      prisma.workOrder.findFirst.mockResolvedValue({
+        id: 'wo-1', tenantId: 'tenant-1', status: 'completed', shopId: 'shop-1', items: [],
+      });
+      prisma.workOrder.update.mockResolvedValue({ id: 'wo-1', status: 'cancelled' });
+
+      await service.updateStatus('wo-1', 'cancelled', mockUser);
+
+      expect(stockService.reverseDeductForWorkOrder).toHaveBeenCalled();
+    });
+  });
+
+  describe('updateStatus - 质保快照', () => {
+    it('in_progress 时写入配件质保快照', async () => {
+      prisma.workOrder.findFirst.mockResolvedValue({
+        id: 'wo-1', tenantId: 'tenant-1', status: 'dispatching', shopId: 'shop-1',
+        items: [
+          { id: 'item-1', itemType: 'part', partId: 'p-1' },
+          { id: 'item-2', itemType: 'service', partId: null },
+        ],
+      });
+      prisma.part.findMany.mockResolvedValue([
+        { id: 'p-1', supplierId: 's-1', warrantyMonths: 12 },
+      ]);
+      prisma.workOrderItem.update.mockResolvedValue({});
+      prisma.workOrder.update.mockResolvedValue({ id: 'wo-1', status: 'in_progress' });
+
+      await service.updateStatus('wo-1', 'in_progress', mockUser);
+
+      expect(prisma.workOrderItem.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'item-1' },
+          data: expect.objectContaining({
+            supplierId: 's-1',
+            warrantyMonths: 12,
+            warrantyUntil: expect.any(Date),
+          }),
+        }),
+      );
+      // 服务项不写快照
+      expect(prisma.workOrderItem.update).toHaveBeenCalledTimes(1);
     });
   });
 

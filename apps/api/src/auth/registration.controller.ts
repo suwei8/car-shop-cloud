@@ -33,6 +33,8 @@ export class RegistrationController {
       phone: dto.phone,
       code: dto.code,
       password: dto.password,
+      businessType: dto.businessType,
+      employeeCount: dto.employeeCount,
       ip,
     });
   }

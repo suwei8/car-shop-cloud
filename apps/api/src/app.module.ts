@@ -43,6 +43,7 @@ import { MarketingModule } from './tenant/marketing/marketing.module';
 
 import { PaymentGatewayModule } from './tenant/payment/payment-gateway.module';
 import { SubscriptionModule } from './tenant/subscription/subscription.module';
+import { WarrantyModule } from './tenant/warranty/warranty.module';
 import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard, SubscriptionGuard } from './common/guards';
 
 @Module({
@@ -96,6 +97,7 @@ import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard, SubscriptionGu
 
     PaymentGatewayModule,
     SubscriptionModule,
+    WarrantyModule,
     AnalyticsModule,
     MarketingModule,
   ],

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
+import { applyDataScope } from '../../common/utils/scope-where';
 
 @Injectable()
 export class DashboardService {
@@ -26,6 +27,7 @@ export class DashboardService {
       pendingDispatch,
       lowStockItems,
       pendingReminders,
+      debtAgg,
     ] = await Promise.all([
       this.prisma.workOrder.count({
         where: { tenantId, createdAt: { gte: startOfDay, lt: endOfDay } },
@@ -50,6 +52,11 @@ export class DashboardService {
       this.prisma.reminder.count({
         where: { tenantId, status: 'pending', dueDate: { gte: startOfDay, lt: endOfDay } },
       }),
+      this.prisma.settlement.aggregate({
+        where: applyDataScope(user, { tenantId, debtAmount: { gt: 0 } }, 'shopId', 'operatorId'),
+        _sum: { debtAmount: true },
+        _count: { id: true },
+      }),
     ]);
 
     const lowStockAlerts = (lowStockItems as any[]).filter(b => Number(b.quantity) <= (b.part.minStock || 0));
@@ -62,6 +69,8 @@ export class DashboardService {
       pendingDispatch,
       lowStockCount: lowStockAlerts.length,
       pendingReminders,
+      totalDebt: Number(debtAgg._sum.debtAmount || 0),
+      debtCount: debtAgg._count.id,
     };
   }
 

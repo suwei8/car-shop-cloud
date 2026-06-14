@@ -130,11 +130,56 @@ export class WorkOrderService {
       // 简易模式：completed 时扣减库存（跳过 in_progress）
       const shouldDeductInInProgress = status === 'in_progress' && order.status !== 'in_progress' && !simpleMode;
       const shouldDeductInCompleted = status === 'completed' && simpleMode;
+      const shouldSnapshotWarranty = shouldDeductInInProgress || shouldDeductInCompleted;
 
       if (shouldDeductInInProgress || shouldDeductInCompleted) {
         await this.stockService.deductForWorkOrder(
           tx, user.tenantId!, order.shopId, id, user.sub,
         );
+      }
+
+      // 作废工单：回滚已扣减的库存
+      if (status === 'cancelled') {
+        await this.stockService.reverseDeductForWorkOrder(
+          tx, user.tenantId!, order.shopId, id, user.sub,
+        );
+      }
+
+      // 质保快照：扣库存时从 Part 写入供应商/质保月数/质保截止
+      if (shouldSnapshotWarranty) {
+        const partItems = order.items.filter((item: any) => item.itemType === 'part' && item.partId);
+        if (partItems.length > 0) {
+          const partIds = partItems.map((item: any) => item.partId);
+          const parts = await tx.part.findMany({
+            where: { id: { in: partIds }, tenantId: user.tenantId! },
+            select: { id: true, supplierId: true, warrantyMonths: true },
+          });
+          const partMap = new Map(parts.map(p => [p.id, p]));
+
+          // 完工日期：当前时间
+          const completedAt = new Date();
+
+          for (const item of partItems) {
+            const partInfo = partMap.get(item.partId!);
+            if (!partInfo) continue;
+
+            const warrantyMonths = partInfo.warrantyMonths || 0;
+            let warrantyUntil: Date | null = null;
+            if (warrantyMonths > 0) {
+              warrantyUntil = new Date(completedAt);
+              warrantyUntil.setMonth(warrantyUntil.getMonth() + warrantyMonths);
+            }
+
+            await tx.workOrderItem.update({
+              where: { id: item.id },
+              data: {
+                supplierId: partInfo.supplierId || null,
+                warrantyMonths,
+                warrantyUntil,
+              },
+            });
+          }
+        }
       }
 
       return tx.workOrder.update({

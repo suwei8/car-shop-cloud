@@ -14,6 +14,8 @@ model Tenant {
   name        String
   contactName String?
   contactPhone String?
+  businessType String?  // repair, wash_beauty, composite
+  employeeCount Int?    // 员工数，用于决定默认配置
   status      String   @default("active") // active, suspended, expired
   subscriptionStatus String   @default("trial") // trial, active, grace, suspended
   subscriptionEndAt  DateTime?
@@ -54,7 +56,6 @@ model Tenant {
   packageCards    PackageCard[]
   packageCardItems PackageCardItem[]
   packageCardTransactions PackageCardTransaction[]
-  customerWxBindings CustomerWxBinding[]
   reminders         Reminder[]
   paymentRefunds    PaymentRefund[]
   subscriptionOrders SubscriptionOrder[]
@@ -183,6 +184,7 @@ model User {
   passwordHash   String
   name           String
   avatar         String?
+  wxOpenid       String?   // 微信小程序 openid（商户/员工端）
   isPlatform     Boolean   @default(false)
   status         String    @default("active") // active, disabled
   lastLoginAt    DateTime?
@@ -197,6 +199,7 @@ model User {
   auditLogs      AuditLog[]
 
   @@unique([tenantId, phone])
+  @@unique([wxOpenid], name: "user_wxopenid_key")
   @@index([tenantId])
   @@index([phone])
   @@map("users")
@@ -407,7 +410,6 @@ model Customer {
   appointments Appointment[]
   receptions  Reception[]
   workOrders  WorkOrder[]
-  wxBindings  CustomerWxBinding[]
   reminders   Reminder[]
   couponClaims CouponClaim[]
 
@@ -551,19 +553,23 @@ model WorkOrder {
 }
 
 model WorkOrderItem {
-  id            String   @id @default(cuid())
-  tenantId      String
-  workOrderId   String
-  serviceItemId String?
-  partId        String?
-  itemType      String   // service, part, addon
-  name          String
-  quantity      Decimal  @default(1) @db.Decimal(10, 2)
-  unit          String   @default("次")
-  unitPrice     Decimal  @db.Decimal(12, 2)
-  amount        Decimal  @db.Decimal(12, 2)
-  technicianId  String?  // 技师
-  remark        String?
+  id                String    @id @default(cuid())
+  tenantId          String
+  workOrderId       String
+  serviceItemId     String?
+  partId            String?
+  itemType          String   // service, part, addon
+  name              String
+  quantity          Decimal  @default(1) @db.Decimal(10, 2)
+  unit              String   @default("次")
+  unitPrice         Decimal  @db.Decimal(12, 2)
+  amount            Decimal  @db.Decimal(12, 2)
+  technicianId      String?  // 技师
+  remark            String?
+  // 质保快照字段（工单完工时从 Part 写入，不影响历史）
+  supplierId         String?  // 供应商快照
+  warrantyMonths     Int?     // 质保月数快照
+  warrantyUntil      DateTime? // 质保截止日期（完工日期 + 质保月数）
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -1005,25 +1011,6 @@ model Notification {
   @@index([tenantId, scene])
   @@index([relatedType, relatedId])
   @@map("notifications")
-}
-
-// ==================== 车主微信小程序 ====================
-
-model CustomerWxBinding {
-  id         String   @id @default(cuid())
-  tenantId   String
-  customerId String
-  openid     String
-  unionid    String?
-  createdAt  DateTime @default(now())
-
-  tenant   Tenant   @relation(fields: [tenantId], references: [id])
-  customer Customer @relation(fields: [customerId], references: [id])
-
-  @@unique([tenantId, openid])
-  @@index([customerId])
-  @@index([openid])
-  @@map("customer_wx_bindings")
 }
 
 // ==================== 经营提醒 ====================

@@ -28,7 +28,10 @@ export class PartService {
         skip: (page - 1) * pageSize,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
-        include: { supplier: { select: { id: true, name: true } } },
+        include: { 
+          supplier: { select: { id: true, name: true, phone: true } },
+          stockBalances: { select: { quantity: true } } 
+        },
       }),
       this.prisma.part.count({ where }),
     ]);

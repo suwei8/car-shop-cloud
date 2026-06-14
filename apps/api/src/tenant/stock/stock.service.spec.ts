@@ -187,6 +187,89 @@ describe('StockService', () => {
     });
   });
 
+  describe('reverseDeductForWorkOrder（工单作废回滚库存）', () => {
+    it('正常回滚：已存在出库单时创建入库单回滚库存', async () => {
+      // 已有回滚入库单 → 幂等跳过
+      prisma.stockBill.findFirst
+        .mockResolvedValueOnce({ id: 'existing-reverse-bill' }); // 检查回滚单
+
+      const mockTx = { stockBill: prisma.stockBill };
+      await service.reverseDeductForWorkOrder(mockTx as any, 'tenant-1', 'shop-1', 'wo-1', 'user-1');
+
+      // 幂等：不应继续创建
+      expect(prisma.stockBill.create).not.toHaveBeenCalled();
+    });
+
+    it('正常回滚：无回滚单时创建入库单', async () => {
+      prisma.stockBill.findFirst
+        .mockResolvedValueOnce(null) // 无回滚入库单
+        .mockResolvedValueOnce({ // 存在出库单
+          id: 'out-bill-1', billNo: 'OUT202606140001',
+          items: [{ id: 'bi-1', partId: 'p-1', quantity: 2, unitPrice: 50, amount: 100 }],
+        });
+      prisma.warehouse.findFirst.mockResolvedValue({ id: 'wh-1' });
+      prisma.sequence.upsert.mockResolvedValue({ value: 1 });
+      prisma.stockBill.create.mockResolvedValue({
+        id: 'in-bill-1', billNo: 'IN202606140001',
+        items: [{ id: 'bi-2', partId: 'p-1', quantity: 2, unitPrice: 50, amount: 100 }],
+      });
+      prisma.stockBalance.findFirst.mockResolvedValue({ id: 'sb-1', quantity: 8 });
+      prisma.stockBalance.update.mockResolvedValue({ quantity: 10 });
+
+      const mockTx = {
+        stockBill: prisma.stockBill,
+        warehouse: prisma.warehouse,
+        stockBalance: prisma.stockBalance,
+        stockMovement: prisma.stockMovement,
+        sequence: prisma.sequence,
+      };
+
+      await service.reverseDeductForWorkOrder(mockTx as any, 'tenant-1', 'shop-1', 'wo-1', 'user-1');
+
+      expect(prisma.stockBill.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ billType: 'in' }),
+        }),
+      );
+      expect(prisma.stockBalance.update).toHaveBeenCalled();
+      expect(prisma.stockMovement.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ movementType: 'in', quantity: 2 }),
+        }),
+      );
+    });
+
+    it('无出库单时：不创建入库单', async () => {
+      prisma.stockBill.findFirst
+        .mockResolvedValueOnce(null) // 无回滚入库单
+        .mockResolvedValueOnce(null); // 无出库单
+
+      const mockTx = { stockBill: prisma.stockBill };
+      await service.reverseDeductForWorkOrder(mockTx as any, 'tenant-1', 'shop-1', 'wo-1', 'user-1');
+
+      expect(prisma.stockBill.create).not.toHaveBeenCalled();
+    });
+
+    it('默认仓库不存在时：不创建入库单', async () => {
+      prisma.stockBill.findFirst
+        .mockResolvedValueOnce(null) // 无回滚入库单
+        .mockResolvedValueOnce({ // 存在出库单
+          id: 'out-bill-1', billNo: 'OUT202606140001',
+          items: [{ id: 'bi-1', partId: 'p-1', quantity: 2, unitPrice: 50, amount: 100 }],
+        });
+      prisma.warehouse.findFirst.mockResolvedValue(null);
+
+      const mockTx = {
+        stockBill: prisma.stockBill,
+        warehouse: prisma.warehouse,
+      };
+
+      await service.reverseDeductForWorkOrder(mockTx as any, 'tenant-1', 'shop-1', 'wo-1', 'user-1');
+
+      expect(prisma.stockBill.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getBalances（库存余额查询）', () => {
     it('返回库存余额列表', async () => {
       prisma.stockBalance.findMany.mockResolvedValue([]);

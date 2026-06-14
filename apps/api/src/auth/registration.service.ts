@@ -42,10 +42,12 @@ export class RegistrationService {
     shopName: string;
     phone: string;
     code: string;
-    password: string;
+    password?: string;
+    businessType: string;
+    employeeCount: number;
     ip: string;
   }) {
-    const { shopName, phone, code, password, ip } = data;
+    const { shopName, phone, code, password, businessType, employeeCount, ip } = data;
 
     // Check register rate limit
     await this.smsCodeService.checkRegisterLimit(ip);
@@ -61,9 +63,12 @@ export class RegistrationService {
       throw new BadRequestException('该手机号已注册，请直接登录');
     }
 
-    // Create tenant in transaction
-    const passwordHash = await bcrypt.hash(password, 10);
-    const trialDays = parseInt(this.config.get('TRIAL_DAYS', '14'));
+    // Hash password if provided, otherwise use a placeholder
+    const passwordHash = password
+      ? await bcrypt.hash(password, 10)
+      : await bcrypt.hash(randomUUID(), 10); // placeholder, user cannot login without setting password
+
+    const trialDays = parseInt(this.config.get('TRIAL_DAYS', '30'));
     const now = new Date();
     const trialEndAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
 
@@ -73,6 +78,8 @@ export class RegistrationService {
         data: {
           name: shopName,
           contactPhone: phone,
+          businessType,
+          employeeCount,
           subscriptionStatus: 'trial',
           subscriptionEndAt: trialEndAt,
         },
@@ -103,6 +110,25 @@ export class RegistrationService {
         passwordHash,
         '管理员',
       );
+
+      // 4. Auto-enable simple_mode if employeeCount <= 5
+      if (employeeCount <= 5) {
+        const simpleModeFlag = await tx.featureFlag.findUnique({
+          where: { code: 'simple_mode' },
+        });
+        if (simpleModeFlag) {
+          await tx.tenantFeatureFlag.upsert({
+            where: {
+              tenantId_featureFlagId: {
+                tenantId: tenant.id,
+                featureFlagId: simpleModeFlag.id,
+              },
+            },
+            update: { enabled: true },
+            create: { tenantId: tenant.id, featureFlagId: simpleModeFlag.id, enabled: true },
+          });
+        }
+      }
 
       return tenant;
     });
