@@ -2,6 +2,9 @@ node_modules/
 dist/
 .env
 .env.local
+.env.production
+nginx/ssl/*
+!nginx/ssl/.gitkeep
 *.log
 .DS_Store
 coverage/
