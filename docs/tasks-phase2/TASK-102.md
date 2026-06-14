@@ -132,7 +132,7 @@
 
 > 审核人填写，Agent 请勿改动此节。
 
-### 审核结果（2026-06-13，实测复核）
+### 首轮审核结果（2026-06-13，实测复核）
 
 - **审核结论**：✅ 通过（首轮通过，高质量）
 - **审核方式**：代码审查 + API 启动 + 真实 HTTP 端到端 + DB 核对 + 全套测试(172)
@@ -146,4 +146,50 @@
   - AuditLog ✅ renew/extend/suspend/resume/impersonate 全部写入并核对
   - 前端 ✅ TenantList.vue 含续费/延期/停用/恢复/代登录按钮 + 对话框
   - 全套测试 172/172；nest build + vue-tsc 通过
-- **TASK-102 状态**：已关闭 ✅
+
+---
+
+### 产品经理二次审核（2026-06-13）
+
+- **审核结论**：⚠️ **有条件通过** — 核心功能完整，存在需跟进修复的问题
+- **审核方式**：三路并行深度代码审查（任务文档对照 + 后端逻辑逐行审查 + 前端实现验证）
+- **总评**：⭐⭐⭐⭐ 4.5/5（功能完整性 5/5、代码质量 4/5、安全性 5/5、测试覆盖 4/5）
+
+#### 🔴 必修问题（修复后方可关闭）
+
+1. **`extend()` 未同步更新 `TenantSubscription.endAt`**
+   - 现状：`extend()` 只更新了 `Tenant.subscriptionEndAt`，但未同步更新对应 `TenantSubscription.endAt`
+   - 风险：定时任务 cron 使用 `TenantSubscription.endAt` 计算状态转换（active → grace → suspended），延期后 cron 可能将延期过的商户重新判定为过期
+   - 修复：`extend()` 中需同时更新当前活跃 `TenantSubscription` 记录的 `endAt` 字段
+
+#### 🟡 建议跟进（可开子任务）
+
+2. **`tenant-stats` 模块无单元测试** — 作为平台级数据接口建议补充基本测试防回归
+3. **DTO 缺少上限校验** — `RenewDto.months` 和 `ExtendDto.days` 仅有 `@Min(1)` 无 `@Max()`，建议加 `@Max(120)` / `@Max(365)`
+
+#### 🟢 轻微建议（backlog）
+
+4. 代登录建议使用独立权限 `platform:tenant:impersonate` 而非复用 `platform:tenant:update`
+5. `subscription-task` cron 批量更新后未调用 `invalidateCache()`（60s TTL 兜底，风险低）
+6. `remove()` 与 `suspend()` 语义不一致（remove 不设 subscriptionStatus、不写审计、不清缓存）
+
+- **TASK-102 状态**：✅ 已关闭（返修验证通过，产品经理确认，2026-06-13）
+- **返修验证**：6/6 检查项全部通过 — extend 事务+TenantSubscription 同步 ✅ | DTO @Max 校验 ✅ | tenant-stats 3 测试 ✅ | extend 测试重写+边界 ✅ | 回执完整 ✅ | 176/176 测试通过 ✅
+
+---
+
+### 审核返修记录（2026-06-13）
+
+| 修改的文件 | 修改内容 |
+|-----------|---------|
+| `apps/api/src/platform/tenant/tenant.service.ts` | `extend()` 方法：用 `$transaction` 包裹，同步更新当前活跃 `TenantSubscription.endAt`（查找 `status in ['active','trial']` 的记录并 update） |
+| `apps/api/src/platform/tenant/dto/renew.dto.ts` | `months` 字段增加 `@Max(120)` 上限校验 |
+| `apps/api/src/platform/tenant/dto/extend.dto.ts` | `days` 字段增加 `@Max(365)` 上限校验 |
+| `apps/api/src/platform/tenant-stats/tenant-stats.service.spec.ts` | **新建**：覆盖单商户统计字段正确性（含 null 边界）、全量概览查询不报错 |
+| `apps/api/src/platform/tenant/tenant.service.spec.ts` | extend 测试重写：验证 $transaction 内同步更新 TenantSubscription.endAt；新增"无活跃订阅时不报错"用例 |
+
+| 验证项 | 结果 |
+|--------|------|
+| nest build | ✅ 通过 |
+| vue-tsc --noEmit | ✅ 通过 |
+| 测试结果 | ✅ 20 suites / 176 tests 全部通过（原 172 + 新增 4：tenant-stats 3 + extend 无活跃订阅 1） |
