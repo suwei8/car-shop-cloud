@@ -1,0 +1,132 @@
+# =============================================================================
+# 车店云管家 — 生产环境编排
+# 用法:
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#   docker compose -f docker-compose.prod.yml ps
+#   docker compose -f docker-compose.prod.yml down
+# =============================================================================
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    image: car-api:${IMAGE_TAG:-latest}
+    container_name: car-api
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      - NODE_ENV=production
+      - API_HOST=0.0.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - car-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    image: car-web:${IMAGE_TAG:-latest}
+    container_name: car-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+    networks:
+      - car-network
+    volumes:
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: car-postgres-prod
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      POSTGRES_DB: car_shop
+      POSTGRES_USER: ${POSTGRES_USER:-car_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata-prod:/var/lib/postgresql/data
+    networks:
+      - car-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-car_admin} -d car_shop"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  redis:
+    image: redis:7-alpine
+    container_name: car-redis-prod
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redisdata-prod:/data
+    networks:
+      - car-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  minio:
+    image: minio/minio:latest
+    container_name: car-minio-prod
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-car_minio_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    volumes:
+      - miniodata-prod:/data
+    networks:
+      - car-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  pgdata-prod:
+  redisdata-prod:
+  miniodata-prod:
+
+networks:
+  car-network:
+    driver: bridge

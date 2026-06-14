@@ -1,0 +1,58 @@
+# Version control
+.git
+.gitignore
+
+# Node modules (rebuilt inside container)
+**/node_modules
+node_modules
+
+# Build outputs (rebuilt inside container)
+apps/api/dist
+apps/web/dist
+apps/mobile/dist
+apps/mobile/unpackage
+
+# Android build artifacts
+apps/mobile/android/.gradle
+apps/mobile/android/app/build
+apps/mobile/android/build
+
+# Logs and caches
+*.log
+.DS_Store
+Thumbs.db
+.qoder
+.mimocode
+coverage
+
+# Documentation (not needed at runtime)
+docs
+*.md
+!apps/api/README.md
+!apps/web/README.md
+
+# Tests (not needed at runtime)
+**/*.spec.ts
+**/*.test.ts
+**/test/
+apps/api/jest.config.ts
+
+# Production env template (the real .env.production is mounted at runtime)
+.env.production
+.env.production.example
+nginx/ssl
+
+# Misc dev artifacts
+apps/api/latest
+apps/api/cmdline-tools
+car-handoff-*.tar.gz
+erp.baisyi.cn.har
+research/
+
+# IDE
+.idea
+.vscode
+
+# Docker files not needed inside build context
+docker-compose*.yml
+.dockerignore
