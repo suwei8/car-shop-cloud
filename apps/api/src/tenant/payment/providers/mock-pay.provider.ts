@@ -39,7 +39,7 @@ export class MockPayProvider implements PaymentProvider {
         timeStamp: Math.floor(Date.now() / 1000).toString(),
         nonceStr: 'mock_nonce_str_32_chars_long_random',
         package: `prepay_id=${prepayId}`,
-        signType: 'RSA',
+        signType: 'HMAC-SHA256',
         paySign: 'mock_signature_for_jsapi_payment',
       };
     }

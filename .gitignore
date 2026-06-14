@@ -53,3 +53,7 @@ Thumbs.db
 *.har
 *.tar.gz
 *.log
+
+# 证书/密钥目录（绝不入库）
+/certs/
+*.pem

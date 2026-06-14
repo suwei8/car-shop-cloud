@@ -302,6 +302,55 @@ describe('SubscriptionService', () => {
       });
     });
 
+    it('should throw BadRequestException when callback amount mismatch', async () => {
+      const service = createService();
+
+      mockPrisma.subscriptionOrder.findFirst.mockResolvedValue({
+        id: 'order-1',
+        tenantId: 't1',
+        orderNo: 'SUB202606130001',
+        amount: 1620,
+        status: 'pending',
+      });
+
+      await expect(
+        service.handleSubscriptionPaymentCallback(
+          'SUB20260613001',
+          'tx-123',
+          10000
+        )
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should proceed successfully when callback amount matches expected', async () => {
+      const service = createService();
+
+      mockPrisma.subscriptionOrder.findFirst.mockResolvedValue({
+        id: 'order-1',
+        tenantId: 't1',
+        orderNo: 'SUB202606130001',
+        planId: 'plan-1',
+        months: 6,
+        amount: 1620,
+        status: 'pending',
+      });
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        id: 't1',
+        subscriptionEndAt: null,
+      });
+      mockPrisma.tenantSubscription.create.mockResolvedValue({});
+      mockPrisma.tenant.update.mockResolvedValue({});
+      mockPrisma.subscriptionOrder.update.mockResolvedValue({});
+
+      await service.handleSubscriptionPaymentCallback(
+        'SUB20260613001',
+        'tx-123',
+        162000
+      );
+
+      expect(mockPrisma.subscriptionOrder.update).toHaveBeenCalled();
+    });
+
     it('should be idempotent for already paid orders', async () => {
       const service = createService();
 
