@@ -108,10 +108,25 @@ export class NotificationService {
           return { id: notification.id, status: 'skipped' };
         }
 
+        let templateData: Record<string, { value: string }>;
+        try {
+          const params = typeof input.content === 'string' ? JSON.parse(input.content) : {};
+          templateData = this.wechatMpProvider.buildTemplateData(input.scene, params);
+        } catch {
+          templateData = { thing1: { value: input.content } };
+        }
+
+        const page = input.relatedType === 'work_order'
+          ? `pages/work-orders/detail?id=${input.relatedId}`
+          : input.relatedType === 'appointment'
+            ? `pages/appointment/confirm?id=${input.relatedId}`
+            : undefined;
+
         const result = await this.wechatMpProvider.sendSubscribeMessage({
           openid: input.recipient,
           templateId,
-          data: { thing1: { value: input.content } },
+          data: templateData,
+          page,
         });
 
         if (result.ok) {

@@ -8,6 +8,7 @@ export const PERMISSIONS = [
   { code: 'platform:tenant:create', name: '创建商户', module: 'platform' },
   { code: 'platform:tenant:update', name: '编辑商户', module: 'platform' },
   { code: 'platform:tenant:delete', name: '删除商户', module: 'platform' },
+  { code: 'platform:tenant:impersonate', name: '代登录商户', module: 'platform' },
   { code: 'platform:tenant:manage', name: '管理商户订阅', module: 'platform' },
   { code: 'platform:plan:view', name: '查看套餐', module: 'platform' },
   { code: 'platform:plan:manage', name: '管理套餐', module: 'platform' },
@@ -46,6 +47,8 @@ export const PERMISSIONS = [
   { code: 'tenant:member:manage', name: '管理会员', module: 'member' },
   // 商户权限 - 报表
   { code: 'tenant:report:view', name: '查看报表', module: 'report' },
+  // 商户权限 - 营销
+  { code: 'tenant:marketing:manage', name: '管理营销活动', module: 'marketing' },
 ] as const;
 
 export type PermissionData = (typeof PERMISSIONS)[number];

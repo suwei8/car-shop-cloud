@@ -127,4 +127,14 @@ describe('SubscriptionTaskService', () => {
       }),
     );
   });
+
+  it('should invalidate SubscriptionGuard cache after status change', async () => {
+    const longExpired = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    mockPrisma.tenant.findMany.mockResolvedValue([
+      makeTenant('t7', 'active', longExpired),
+    ]);
+
+    await service.manualRun();
+    expect(mockSubscriptionGuard.invalidateCache).toHaveBeenCalledWith('t7');
+  });
 });

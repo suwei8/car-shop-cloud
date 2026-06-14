@@ -1,5 +1,6 @@
 import {
-  Controller, Get, Post, Body, UploadedFile, UseInterceptors, HttpCode, HttpStatus,
+  Controller, Get, Post, Body, UploadedFile, UseInterceptors,
+  HttpCode, HttpStatus, BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
@@ -38,11 +39,11 @@ export class DataImportController {
     @CurrentUser() user: JwtPayload,
   ) {
     if (!file) {
-      throw new Error('请上传Excel文件');
+      throw new BadRequestException('请上传Excel文件');
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      throw new Error('文件大小不能超过5MB');
+      throw new BadRequestException('文件大小不能超过5MB');
     }
 
     return this.dataImportService.preview(file.buffer, user);
@@ -59,23 +60,31 @@ export class DataImportController {
     @CurrentUser() user: JwtPayload,
   ) {
     if (!file) {
-      throw new Error('请上传Excel文件');
+      throw new BadRequestException('请上传Excel文件');
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      throw new Error('文件大小不能超过5MB');
+      throw new BadRequestException('文件大小不能超过5MB');
     }
 
-    const previewResult = JSON.parse(previewData);
+    if (!previewData) {
+      throw new BadRequestException('缺少预览数据，请先执行预览步骤');
+    }
 
-    // 二次校验：确保没有错误行
+    let previewResult: any;
+    try {
+      previewResult = JSON.parse(previewData);
+    } catch {
+      throw new BadRequestException('预览数据格式错误');
+    }
+
     const hasErrors =
       previewResult.customers.errors.length > 0 ||
       previewResult.vehicles.errors.length > 0 ||
       previewResult.storedValueCards.errors.length > 0;
 
     if (hasErrors) {
-      throw new Error('数据中存在错误行，请修正后重新上传');
+      throw new BadRequestException('数据中存在错误行，请修正后重新上传');
     }
 
     return this.dataImportService.execute(file.buffer, previewResult, user);

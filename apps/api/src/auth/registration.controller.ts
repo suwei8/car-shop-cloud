@@ -1,5 +1,6 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { RegistrationService } from './registration.service';
 import { SendCodeDto, RegisterDto } from './dto';
 import { Public } from '../common/decorators';
@@ -11,6 +12,7 @@ export class RegistrationController {
   constructor(private registrationService: RegistrationService) {}
 
   @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Post('register/send-code')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '发送注册验证码' })
@@ -20,6 +22,7 @@ export class RegistrationController {
   }
 
   @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Post('register')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: '商户注册' })

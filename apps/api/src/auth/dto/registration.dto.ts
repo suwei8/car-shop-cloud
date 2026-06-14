@@ -1,5 +1,6 @@
 import { IsString, MinLength, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { IsStrongPassword } from '../../common/validators/password.validator';
 
 export class SendCodeDto {
   @ApiProperty({ example: '13800000000' })
@@ -26,7 +27,6 @@ export class RegisterDto {
 
   @ApiProperty({ example: 'Abc12345' })
   @IsString()
-  @MinLength(8, { message: '密码至少8位' })
-  @Matches(/^(?=.*[a-zA-Z])(?=.*\d).+$/, { message: '密码必须包含字母和数字' })
+  @IsStrongPassword()
   password: string;
 }

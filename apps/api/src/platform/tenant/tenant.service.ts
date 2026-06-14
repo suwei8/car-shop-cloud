@@ -123,11 +123,29 @@ export class PlatformTenantService {
   }
 
   async remove(id: string) {
-    await this.findOne(id);
-    return this.prisma.tenant.update({
+    const tenant = await this.findOne(id);
+
+    const updated = await this.prisma.tenant.update({
       where: { id },
-      data: { status: 'suspended' },
+      data: {
+        status: 'suspended',
+        subscriptionStatus: 'suspended',
+      },
     });
+
+    await this.audit.log({
+      action: 'remove',
+      targetType: 'tenant',
+      targetId: id,
+      changes: {
+        previousStatus: tenant.status,
+        previousSubscriptionStatus: tenant.subscriptionStatus,
+      },
+    });
+
+    this.invalidateGuardCache(id);
+
+    return updated;
   }
 
   private invalidateGuardCache(tenantId: string) {
@@ -191,9 +209,26 @@ export class PlatformTenantService {
     const newEndAt = new Date(baseDate);
     newEndAt.setDate(newEndAt.getDate() + days);
 
-    await this.prisma.tenant.update({
-      where: { id: tenantId },
-      data: { subscriptionEndAt: newEndAt },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.tenant.update({
+        where: { id: tenantId },
+        data: { subscriptionEndAt: newEndAt },
+      });
+
+      const activeSub = await tx.tenantSubscription.findFirst({
+        where: {
+          tenantId,
+          status: { in: ['active', 'trial'] },
+        },
+        orderBy: { endAt: 'desc' },
+      });
+
+      if (activeSub) {
+        await tx.tenantSubscription.update({
+          where: { id: activeSub.id },
+          data: { endAt: newEndAt },
+        });
+      }
     });
 
     await this.audit.log({

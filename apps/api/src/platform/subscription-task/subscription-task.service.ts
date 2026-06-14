@@ -76,6 +76,8 @@ export class SubscriptionTaskService {
           changes: { from: oldStatus, to: newStatus, subscriptionId: sub.id },
         });
 
+        this.subscriptionGuard.invalidateCache(tenant.id);
+
         this.logger.log(
           `Tenant ${tenant.id} (${tenant.name}): ${oldStatus} → ${newStatus}`,
         );

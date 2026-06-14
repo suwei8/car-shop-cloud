@@ -3,12 +3,16 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
 import { applyDataScope } from '../../common/utils/scope-where';
 import { PackageCardService } from '../package-card/package-card.service';
+import { PaymentGatewayService } from '../payment/payment-gateway.service';
+import { MarketingService } from '../marketing/marketing.service';
 
 @Injectable()
 export class SettlementService {
   constructor(
     private prisma: PrismaService,
     private packageCardService: PackageCardService,
+    private paymentGatewayService: PaymentGatewayService,
+    private marketingService: MarketingService,
   ) {}
 
   async findAll(user: JwtPayload, query: { page?: number; pageSize?: number; shopId?: string; status?: string; workOrderId?: string }) {
@@ -51,6 +55,7 @@ export class SettlementService {
     workOrderId: string; discountAmount?: number;
     payments: { payMethod: string; amount: number; referenceNo?: string; cardId?: string; remark?: string }[];
     packageRedemptions?: { cardId: string; itemId: string; serviceItemId: string; quantity: number }[];
+    couponClaimId?: string;
   }, user: JwtPayload) {
     const workOrder = await this.prisma.workOrder.findFirst({
       where: { id: data.workOrderId, tenantId: user.tenantId! },
@@ -63,6 +68,7 @@ export class SettlementService {
     const totalAmount = Number(workOrder.totalAmount);
     let discountAmount = data.discountAmount || 0;
     let packageDeductAmount = 0;
+    let couponDiscountAmount = 0;
 
     if (data.packageRedemptions?.length) {
       for (const r of data.packageRedemptions) {
@@ -74,11 +80,14 @@ export class SettlementService {
       }
     }
 
-    const payableAmount = totalAmount - discountAmount - packageDeductAmount;
+    const subTotal = totalAmount - discountAmount - packageDeductAmount;
     const paidAmount = data.payments.reduce((sum, p) => sum + p.amount, 0);
-    const debtAmount = Math.max(0, payableAmount - paidAmount);
+    const debtAmount = Math.max(0, subTotal - couponDiscountAmount - paidAmount);
 
-    return this.prisma.$transaction(async (tx) => {
+    const onlineMethods = ['wechat', 'alipay'];
+    const hasOnlinePayment = data.payments.some(p => onlineMethods.includes(p.payMethod));
+
+    const settlement = await this.prisma.$transaction(async (tx) => {
       if (data.packageRedemptions?.length) {
         for (const r of data.packageRedemptions) {
           await this.packageCardService.redeem(
@@ -89,6 +98,16 @@ export class SettlementService {
         }
       }
 
+      // 优惠券核销
+      if (data.couponClaimId) {
+        const couponResult = await this.marketingService.validateAndRedeemCoupon(
+          tx, user.tenantId!, data.couponClaimId, totalAmount,
+        );
+        couponDiscountAmount = couponResult.discountAmount;
+      }
+
+      const finalPayableAmount = totalAmount - discountAmount - packageDeductAmount - couponDiscountAmount;
+
       const settleNo = await this.generateSettleNo(user.tenantId!, tx);
       const settlement = await tx.settlement.create({
         data: {
@@ -97,10 +116,11 @@ export class SettlementService {
           settleNo,
           workOrderId: data.workOrderId,
           totalAmount,
-          discountAmount: discountAmount + packageDeductAmount,
-          payableAmount,
+          discountAmount: discountAmount + packageDeductAmount + couponDiscountAmount,
+          payableAmount: finalPayableAmount,
           paidAmount,
-          debtAmount,
+          debtAmount: Math.max(0, finalPayableAmount - paidAmount),
+          status: hasOnlinePayment ? 'pending_payment' : 'settled',
           operatorId: user.sub,
           payments: {
             create: data.payments.map(p => ({
@@ -110,6 +130,7 @@ export class SettlementService {
               referenceNo: p.referenceNo,
               cardId: p.cardId,
               remark: p.remark,
+              status: onlineMethods.includes(p.payMethod) ? 'pending' : 'paid',
             })),
           },
         },
@@ -174,13 +195,34 @@ export class SettlementService {
         where: { id: data.workOrderId },
         data: {
           status: 'settled',
-          discountAmount: discountAmount + packageDeductAmount,
-          payableAmount,
+          discountAmount: discountAmount + packageDeductAmount + couponDiscountAmount,
+          payableAmount: finalPayableAmount,
         },
       });
 
       return settlement;
     });
+
+    let payUrl: string | undefined;
+    let paymentId: string | undefined;
+
+    if (hasOnlinePayment) {
+      const onlinePayment = settlement.payments.find(p => onlineMethods.includes(p.payMethod));
+      if (onlinePayment) {
+        try {
+          const result = await this.paymentGatewayService.createPaymentOrder(
+            onlinePayment.id,
+            onlinePayment.payMethod as 'wechat' | 'alipay',
+          );
+          payUrl = result.codeUrl;
+          paymentId = onlinePayment.id;
+        } catch (err) {
+          // Log but don't fail the settlement
+        }
+      }
+    }
+
+    return { ...settlement, payUrl, paymentId };
   }
 
   // 反结算
@@ -310,6 +352,54 @@ export class SettlementService {
     ]);
 
     return { items, total, page, pageSize };
+  }
+
+  async getPaymentStatus(settlementId: string, user: JwtPayload) {
+    const settlement = await this.prisma.settlement.findFirst({
+      where: { id: settlementId, tenantId: user.tenantId! },
+      include: { payments: true },
+    });
+    if (!settlement) throw new NotFoundException('结算单不存在');
+
+    const onlinePayment = settlement.payments.find(
+      p => ['wechat', 'alipay'].includes(p.payMethod),
+    );
+
+    if (!onlinePayment) {
+      return { settlementStatus: settlement.status, payments: settlement.payments.map(p => ({ id: p.id, status: p.status, payMethod: p.payMethod })) };
+    }
+
+    const result = await this.paymentGatewayService.queryPaymentStatus(onlinePayment.id);
+
+    const updatedSettlement = await this.prisma.settlement.findUnique({
+      where: { id: settlementId },
+      include: { payments: true },
+    });
+
+    return {
+      settlementStatus: updatedSettlement?.status || settlement.status,
+      payments: (updatedSettlement?.payments || settlement.payments).map(p => ({
+        id: p.id,
+        status: p.status,
+        payMethod: p.payMethod,
+      })),
+      paymentStatus: result.status,
+      transactionId: result.transactionId,
+    };
+  }
+
+  async refundPayment(settlementId: string, paymentId: string, data: { amount: number; reason: string }, user: JwtPayload) {
+    const settlement = await this.prisma.settlement.findFirst({
+      where: { id: settlementId, tenantId: user.tenantId! },
+    });
+    if (!settlement) throw new NotFoundException('结算单不存在');
+
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, settlementId, tenantId: user.tenantId! },
+    });
+    if (!payment) throw new NotFoundException('支付记录不存在');
+
+    return this.paymentGatewayService.refund(paymentId, data.amount, data.reason, user.sub);
   }
 
   private async generateSettleNo(tenantId: string, tx: any): Promise<string> {

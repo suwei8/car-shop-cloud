@@ -22,6 +22,56 @@ export class WechatMpProvider {
     return !!(this.appId && this.appSecret);
   }
 
+  async code2Session(code: string): Promise<{ openid: string; unionid?: string; sessionKey: string }> {
+    if (!this.isConfigured()) {
+      throw new Error('WeChat MP not configured');
+    }
+
+    const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${this.appId}&secret=${this.appSecret}&js_code=${code}&grant_type=authorization_code`;
+    const res = await fetch(url);
+    const data = await res.json() as any;
+
+    if (data.errcode) {
+      throw new Error(`code2Session failed: ${data.errmsg}`);
+    }
+
+    return {
+      openid: data.openid,
+      unionid: data.unionid || undefined,
+      sessionKey: data.session_key,
+    };
+  }
+
+  buildTemplateData(scene: string, params: Record<string, string>): Record<string, { value: string }> {
+    switch (scene) {
+      case 'work_order_completed':
+        return {
+          character_string1: { value: params.orderNo || '' },
+          thing2: { value: params.vehiclePlateNo || '' },
+          thing3: { value: params.serviceContent || '' },
+          time4: { value: params.completedAt || '' },
+          thing5: { value: params.shopName || '欢迎取车' },
+        };
+      case 'maintenance_reminder':
+        return {
+          thing1: { value: params.vehiclePlateNo || '' },
+          thing2: { value: params.maintenanceItem || '' },
+          thing3: { value: params.shopName || '' },
+          thing5: { value: params.remark || '建议尽快到店保养' },
+        };
+      case 'appointment_confirmed':
+        return {
+          character_string1: { value: params.appointNo || '' },
+          thing2: { value: params.serviceType || '' },
+          time3: { value: params.appointTime || '' },
+          thing4: { value: params.shopName || '' },
+          thing5: { value: params.remark || '请准时到店' },
+        };
+      default:
+        return { thing1: { value: params.content || '' } };
+    }
+  }
+
   async sendSubscribeMessage(input: {
     openid: string;
     templateId: string;

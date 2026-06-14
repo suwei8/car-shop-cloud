@@ -83,7 +83,7 @@ export class PlatformTenantController {
   }
 
   @Post(':id/impersonate')
-  @RequirePermissions('platform:tenant:update')
+  @RequirePermissions('platform:tenant:impersonate')
   @ApiOperation({ summary: '代登录' })
   impersonate(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     if (!user.isPlatform) {

@@ -3,6 +3,8 @@ import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { SettlementService } from './settlement.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PackageCardService } from '../package-card/package-card.service';
+import { PaymentGatewayService } from '../payment/payment-gateway.service';
+import { MarketingService } from '../marketing/marketing.service';
 import { JwtPayload } from '@car/shared';
 
 describe('SettlementService', () => {
@@ -66,11 +68,23 @@ describe('SettlementService', () => {
 
     packageCardService = { redeem: jest.fn() };
 
+    const mockPaymentGatewayService = {
+      createPaymentOrder: jest.fn().mockResolvedValue({ codeUrl: 'mock-url' }),
+      queryPaymentStatus: jest.fn().mockResolvedValue({ status: 'pending' }),
+      refund: jest.fn(),
+    };
+
+    const mockMarketingService = {
+      validateAndRedeemCoupon: jest.fn().mockResolvedValue({ discountAmount: 0 }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SettlementService,
         { provide: PrismaService, useValue: prisma },
         { provide: PackageCardService, useValue: packageCardService },
+        { provide: PaymentGatewayService, useValue: mockPaymentGatewayService },
+        { provide: MarketingService, useValue: mockMarketingService },
       ],
     }).compile();
 

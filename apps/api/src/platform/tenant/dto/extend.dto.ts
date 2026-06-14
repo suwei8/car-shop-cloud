@@ -1,10 +1,11 @@
-import { IsString, IsNumber, Min } from 'class-validator';
+import { IsString, IsNumber, Min, Max } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ExtendDto {
-  @ApiProperty({ minimum: 1 })
+  @ApiProperty({ minimum: 1, maximum: 365 })
   @IsNumber()
   @Min(1)
+  @Max(365)
   days: number;
 
   @ApiProperty()

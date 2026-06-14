@@ -1,4 +1,4 @@
-import { IsString, IsNumber, Min } from 'class-validator';
+import { IsString, IsNumber, Min, Max } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RenewDto {
@@ -6,8 +6,9 @@ export class RenewDto {
   @IsString()
   planId: string;
 
-  @ApiProperty({ minimum: 1 })
+  @ApiProperty({ minimum: 1, maximum: 120 })
   @IsNumber()
   @Min(1)
+  @Max(120)
   months: number;
 }

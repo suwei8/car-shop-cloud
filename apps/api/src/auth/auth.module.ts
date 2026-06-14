@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
@@ -19,6 +19,11 @@ import { NotificationModule } from '../notification/notification.module';
         const secret = config.get<string>('JWT_SECRET');
         if (!secret) {
           throw new Error('JWT_SECRET environment variable is required');
+        }
+        if (secret.length < 32) {
+          new Logger('AuthModule').warn(
+            `JWT_SECRET 长度仅为 ${secret.length}，建议至少 32 个字符以确保安全强度`,
+          );
         }
         return {
           secret,

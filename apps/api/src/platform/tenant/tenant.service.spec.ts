@@ -14,7 +14,7 @@ const mockPrisma = {
     create: jest.fn(),
   },
   subscriptionPlan: { findUnique: jest.fn() },
-  tenantSubscription: { create: jest.fn() },
+  tenantSubscription: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
   user: { findFirst: jest.fn() },
   auditLog: { create: jest.fn() },
   $transaction: jest.fn(),
@@ -128,21 +128,56 @@ describe('PlatformTenantService', () => {
         id: 'tenant-1',
         subscriptionEndAt: currentEndAt,
       });
-      mockPrisma.tenant.update.mockResolvedValue({});
+
+      const mockTxTenant = { update: jest.fn() };
+      const mockTxSub = {
+        findFirst: jest.fn().mockResolvedValue({ id: 'sub-active', tenantId: 'tenant-1', status: 'active' }),
+        update: jest.fn(),
+      };
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        return fn({ tenant: mockTxTenant, tenantSubscription: mockTxSub });
+      });
 
       const result = await service.extend('tenant-1', 30, '客户投诉补偿', 'operator-1');
 
-      expect(mockPrisma.tenant.update).toHaveBeenCalledWith(expect.objectContaining({
-        where: { id: 'tenant-1' },
+      const tenantUpdateData = mockTxTenant.update.mock.calls[0][0].data;
+      expect(tenantUpdateData.subscriptionEndAt > currentEndAt).toBe(true);
+
+      expect(mockTxSub.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ tenantId: 'tenant-1', status: { in: ['active', 'trial'] } }),
       }));
 
-      const updateData = mockPrisma.tenant.update.mock.calls[0][0].data;
-      expect(updateData.subscriptionEndAt > currentEndAt).toBe(true);
+      expect(mockTxSub.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: 'sub-active' },
+        data: { endAt: tenantUpdateData.subscriptionEndAt },
+      }));
 
       expect(mockAudit.log).toHaveBeenCalledWith(expect.objectContaining({
         action: 'extend',
         changes: expect.objectContaining({ days: 30, reason: '客户投诉补偿' }),
       }));
+    });
+
+    it('should not fail when no active TenantSubscription exists', async () => {
+      const service = createService();
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        id: 'tenant-1',
+        subscriptionEndAt: null,
+      });
+
+      const mockTxTenant = { update: jest.fn() };
+      const mockTxSub = {
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
+      };
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        return fn({ tenant: mockTxTenant, tenantSubscription: mockTxSub });
+      });
+
+      await service.extend('tenant-1', 7, '补偿', 'op-1');
+
+      expect(mockTxSub.update).not.toHaveBeenCalled();
+      expect(mockTxSub.findFirst).toHaveBeenCalled();
     });
   });
 
@@ -163,6 +198,43 @@ describe('PlatformTenantService', () => {
         action: 'suspend',
       }));
       expect(result).toEqual({ message: '已停用' });
+    });
+  });
+
+  describe('remove', () => {
+    it('should set status and subscriptionStatus to suspended, write audit, and invalidate cache', async () => {
+      const service = createService();
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        id: 'tenant-1',
+        status: 'active',
+        subscriptionStatus: 'active',
+      });
+      mockPrisma.tenant.update.mockResolvedValue({ id: 'tenant-1', status: 'suspended' });
+
+      const result = await service.remove('tenant-1');
+
+      expect(mockPrisma.tenant.update).toHaveBeenCalledWith({
+        where: { id: 'tenant-1' },
+        data: {
+          status: 'suspended',
+          subscriptionStatus: 'suspended',
+        },
+      });
+
+      expect(mockAudit.log).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'remove',
+        targetType: 'tenant',
+        targetId: 'tenant-1',
+        changes: expect.objectContaining({
+          previousStatus: 'active',
+          previousSubscriptionStatus: 'active',
+        }),
+      }));
+
+      const mockGuard = mockModuleRef.get();
+      expect(mockGuard.invalidateCache).toHaveBeenCalledWith('tenant-1');
+
+      expect(result).toEqual({ id: 'tenant-1', status: 'suspended' });
     });
   });
 

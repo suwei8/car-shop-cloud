@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { FileService } from './file.service';
 import { CurrentUser, TenantRequired } from '../common/decorators';
 import { JwtPayload } from '@car/shared';
@@ -12,6 +13,7 @@ import { GetUploadUrlDto } from './dto/file.dto';
 export class FileController {
   constructor(private service: FileService) {}
 
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Post('upload-url')
   @ApiOperation({ summary: '获取文件上传预签名 URL' })
   getUploadUrl(
