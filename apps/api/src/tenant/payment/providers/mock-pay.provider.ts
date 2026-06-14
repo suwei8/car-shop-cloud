@@ -1,0 +1,79 @@
+import { Injectable, Logger } from '@nestjs/common';
+import {
+  PaymentProvider,
+  CreateOrderParams,
+  CreateOrderResult,
+  QueryOrderResult,
+  RefundParams,
+  RefundResult,
+  CallbackVerifyResult,
+} from './payment-provider.interface';
+
+interface MockOrder {
+  outTradeNo: string;
+  amount: number;
+  createdAt: number;
+}
+
+@Injectable()
+export class MockPayProvider implements PaymentProvider {
+  readonly method = 'mock' as const;
+  private logger = new Logger('MockPay');
+  private orders: Map<string, MockOrder> = new Map();
+
+  async createOrder(params: CreateOrderParams): Promise<CreateOrderResult> {
+    this.orders.set(params.outTradeNo, {
+      outTradeNo: params.outTradeNo,
+      amount: params.amount,
+      createdAt: Date.now(),
+    });
+    this.logger.log(`[MockPay] createOrder: ${params.outTradeNo} amount=${params.amount}`);
+    return {
+      codeUrl: `https://mock-pay.example.com/qr/${params.outTradeNo}`,
+    };
+  }
+
+  async queryOrder(outTradeNo: string): Promise<QueryOrderResult> {
+    const order = this.orders.get(outTradeNo);
+    if (!order) {
+      return { status: 'pending' };
+    }
+    const elapsed = Date.now() - order.createdAt;
+    if (elapsed >= 5000) {
+      const transactionId = `MOCK_${order.createdAt}_${Math.random().toString(36).slice(2, 8)}`;
+      this.logger.log(`[MockPay] queryOrder: ${outTradeNo} → paid (mock)`);
+      return {
+        status: 'paid',
+        transactionId,
+        paidAt: new Date(),
+      };
+    }
+    this.logger.log(`[MockPay] queryOrder: ${outTradeNo} → pending (${Math.round(elapsed / 1000)}s)`);
+    return { status: 'pending' };
+  }
+
+  async refund(params: RefundParams): Promise<RefundResult> {
+    this.logger.log(`[MockPay] refund: ${params.outRefundNo} amount=${params.refundAmount}`);
+    return {
+      outRefundNo: params.outRefundNo,
+      status: 'success',
+    };
+  }
+
+  async verifyCallback(_headers: Record<string, string>, body: string | Buffer): Promise<CallbackVerifyResult> {
+    this.logger.log(`[MockPay] verifyCallback: verified=true`);
+    const raw = typeof body === 'string' ? body : body.toString('utf-8');
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        verified: true,
+        outTradeNo: parsed.outTradeNo,
+        transactionId: parsed.transactionId || `MOCK_${Date.now()}`,
+        amount: parsed.amount,
+        rawData: parsed,
+      };
+    } catch {
+      return { verified: true, rawData: raw };
+    }
+  }
+}

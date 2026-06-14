@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { PlatformTenantModule } from './platform/tenant/tenant.module';
@@ -37,13 +38,24 @@ import { HealthModule } from './health/health.module';
 import { NotificationModule } from './notification/notification.module';
 import { DataImportModule } from './tenant/data-import/data-import.module';
 import { ReminderModule } from './tenant/reminder/reminder.module';
-import { CustomerPortalModule } from './customer-portal/customer-portal.module';
+import { AnalyticsModule } from './tenant/analytics/analytics.module';
+import { MarketingModule } from './tenant/marketing/marketing.module';
+
+import { PaymentGatewayModule } from './tenant/payment/payment-gateway.module';
+import { SubscriptionModule } from './tenant/subscription/subscription.module';
 import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard, SubscriptionGuard } from './common/guards';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: 100,
+      },
+    ]),
     PrismaModule,
     AuthModule,
     AuditModule,
@@ -81,9 +93,14 @@ import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard, SubscriptionGu
     PrintModule,
     DataImportModule,
     ReminderModule,
-    CustomerPortalModule,
+
+    PaymentGatewayModule,
+    SubscriptionModule,
+    AnalyticsModule,
+    MarketingModule,
   ],
   providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: SubscriptionGuard },
