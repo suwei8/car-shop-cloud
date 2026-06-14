@@ -36,8 +36,9 @@ export class RegisterDto {
   @IsIn(['repair', 'wash_beauty', 'composite'], { message: '经营类型必须为 repair/wash_beauty/composite' })
   businessType: string;
 
-  @ApiProperty({ example: 3 })
+  @ApiPropertyOptional({ example: 3, description: '员工数（可选，不再用于套餐限制）' })
+  @IsOptional()
   @IsInt()
   @Min(1, { message: '员工数至少为1' })
-  employeeCount: number;
+  employeeCount?: number;
 }

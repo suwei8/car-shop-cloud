@@ -117,9 +117,9 @@ export class WechatLoginService {
       return this.generateLoginResult(existingUser);
     }
 
-    // 4. 新用户 → 需要 shopName / businessType / employeeCount
-    if (!shopName || !businessType || !employeeCount) {
-      throw new BadRequestException('新用户绑定需要提供 shopName、businessType、employeeCount');
+    // 4. 新用户 → 需要 shopName / businessType
+    if (!shopName || !businessType) {
+      throw new BadRequestException('新用户绑定需要提供 shopName、businessType');
     }
 
     // 检查注册限流
@@ -169,23 +169,21 @@ export class WechatLoginService {
         '管理员',
       );
 
-      // 8. 自动启用简易模式（employeeCount <= 5）
-      if (employeeCount <= 5) {
-        const simpleModeFlag = await tx.featureFlag.findUnique({
-          where: { code: 'simple_mode' },
-        });
-        if (simpleModeFlag) {
-          await tx.tenantFeatureFlag.upsert({
-            where: {
-              tenantId_featureFlagId: {
-                tenantId: tenant.id,
-                featureFlagId: simpleModeFlag.id,
-              },
+      // 8. 默认启用简易模式（面向小店，单店版）
+      const simpleModeFlag = await tx.featureFlag.findUnique({
+        where: { code: 'simple_mode' },
+      });
+      if (simpleModeFlag) {
+        await tx.tenantFeatureFlag.upsert({
+          where: {
+            tenantId_featureFlagId: {
+              tenantId: tenant.id,
+              featureFlagId: simpleModeFlag.id,
             },
-            update: { enabled: true },
-            create: { tenantId: tenant.id, featureFlagId: simpleModeFlag.id, enabled: true },
-          });
-        }
+          },
+          update: { enabled: true },
+          create: { tenantId: tenant.id, featureFlagId: simpleModeFlag.id, enabled: true },
+        });
       }
 
       return tenant;

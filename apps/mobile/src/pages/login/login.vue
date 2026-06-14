@@ -1,7 +1,7 @@
 <template>
   <view class="login-page">
     <view class="login-header">
-      <text class="title">车店云管家</text>
+      <text class="title">车店管家</text>
       <text class="subtitle">商户登录</text>
     </view>
 

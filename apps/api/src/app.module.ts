@@ -48,7 +48,7 @@ import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard, SubscriptionGu
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../../.env', '.env'] }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {

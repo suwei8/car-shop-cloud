@@ -57,3 +57,4 @@ Thumbs.db
 # 证书/密钥目录（绝不入库）
 /certs/
 *.pem
+temp/

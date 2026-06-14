@@ -10,6 +10,7 @@
       <view class="section-title">1. 手机号验证</view>
       <view class="form-item">
         <input
+          placeholder-class="input-placeholder"
           v-model="form.phone"
           type="number"
           placeholder="请输入手机号"
@@ -19,6 +20,7 @@
       </view>
       <view class="form-item code-row">
         <input
+          placeholder-class="input-placeholder"
           v-model="form.smsCode"
           type="number"
           placeholder="短信验证码"
@@ -58,6 +60,7 @@
       <view class="section-title">3. 店铺信息</view>
       <view class="form-item">
         <input
+          placeholder-class="input-placeholder"
           v-model="form.shopName"
           placeholder="店铺名称（必填）"
           maxlength="30"
@@ -66,27 +69,10 @@
       </view>
       <view class="form-item">
         <input
-          v-model="form.employeeCount"
-          type="number"
-          placeholder="员工数（必填）"
-          maxlength="3"
-          class="form-input"
-        />
-      </view>
-      <view class="form-item">
-        <input
+          placeholder-class="input-placeholder"
           v-model="form.address"
           placeholder="地址（选填）"
           maxlength="100"
-          class="form-input"
-        />
-      </view>
-      <view class="form-item">
-        <input
-          v-model="form.contactPhone"
-          type="number"
-          placeholder="联系电话（选填）"
-          maxlength="11"
           class="form-input"
         />
       </view>
@@ -126,9 +112,7 @@ const form = reactive({
   smsCode: '',
   businessType: '',
   shopName: '',
-  employeeCount: '',
   address: '',
-  contactPhone: '',
 });
 
 const countdown = ref(0);
@@ -209,7 +193,6 @@ function validateForm(): string | null {
   if (!form.smsCode || form.smsCode.length < 6) return '请输入6位验证码';
   if (!form.businessType) return '请选择经营类型';
   if (!form.shopName || form.shopName.length < 2) return '店铺名称至少2个字符';
-  if (!form.employeeCount || parseInt(form.employeeCount) < 1) return '员工数至少为1';
   return null;
 }
 
@@ -240,7 +223,7 @@ async function handleSubmit() {
         smsCode: form.smsCode,
         shopName: form.shopName,
         businessType: form.businessType,
-        employeeCount: parseInt(form.employeeCount),
+        address: form.address || undefined,
       },
     });
 
@@ -307,17 +290,25 @@ function goToLogin() {
 .form-input {
   border: 1px solid #e5e5e5;
   border-radius: 12rpx;
-  padding: 24rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  padding: 0 24rpx;
   font-size: 30rpx;
   width: 100%;
   box-sizing: border-box;
 }
+.input-placeholder {
+  color: #bbb;
+  font-weight: normal;
+}
 .code-row {
   display: flex;
+  align-items: center;
   gap: 16rpx;
 }
 .code-input {
   flex: 1;
+  min-width: 0;
 }
 .send-btn {
   min-width: 200rpx;

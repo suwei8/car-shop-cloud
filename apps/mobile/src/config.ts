@@ -3,7 +3,7 @@ const ENV_CONFIG = {
     BASE_URL: 'http://localhost:3000',
   },
   production: {
-    BASE_URL: 'https://car-api.555606.xyz',
+    BASE_URL: 'https://car-api.13982.com',
   },
 };
 

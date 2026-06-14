@@ -89,7 +89,7 @@
       </view>
       <view class="pc-guide-body">
         <text class="pc-tip">💡 为获得更完整的管理体验，您可以使用电脑浏览器访问车店云管家后台：</text>
-        <text class="pc-url font-bold">https://car-admin.555606.xyz</text>
+        <text class="pc-url font-bold">https://car.13982.com</text>
         <text class="pc-features">电脑端支持的高级重度操作：</text>
         <view class="features-list">
           <text class="feat-item">● 配件及客户信息批量导入导出</text>
