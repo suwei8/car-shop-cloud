@@ -1,6 +1,7 @@
 const LOGIN_PAGE = '/pages/login/login';
+const ONBOARDING_PAGE = '/pages/onboarding/index';
 
-const PUBLIC_PAGES = [LOGIN_PAGE];
+const PUBLIC_PAGES = [LOGIN_PAGE, ONBOARDING_PAGE];
 
 function isPublicPage(url: string): boolean {
   const path = url.split('?')[0];

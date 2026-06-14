@@ -310,8 +310,47 @@
       </view>
     </view>
 
+    <!-- 工单项目明细 -->
+    <view class="section premium-card">
+      <view class="section-title-between">
+        <view class="sec-title-left">
+          <text class="prefix">🔧</text>
+          <text>选择施工项目与配件材料</text>
+        </view>
+      </view>
+
+      <view class="selected-items-list">
+        <view class="selected-item-row" v-for="(item, idx) in selectedItems" :key="idx">
+          <view class="sel-item-info">
+            <text class="sel-item-name font-bold">{{ item.name }}</text>
+            <text class="sel-item-badge" :class="item.itemType">{{ item.itemType === 'service' ? '服务项目' : '配件材料' }}</text>
+          </view>
+          <view class="sel-item-price-qty">
+            <view class="qty-adjust-box">
+              <text class="qty-btn" @tap="adjustItemQty(idx, -1)">-</text>
+              <input class="qty-input" type="number" v-model.number="item.quantity" @input="calculateTotal" />
+              <text class="qty-btn" @tap="adjustItemQty(idx, 1)">+</text>
+              <text class="qty-unit">{{ item.unit || '次' }}</text>
+            </view>
+            <text class="sel-item-price font-bold">¥{{ Number(item.unitPrice * item.quantity).toFixed(2) }}</text>
+          </view>
+          <text class="sel-item-del font-bold" @tap="removeSelectedItem(idx)">✕</text>
+        </view>
+        <view class="empty-items-tip" v-if="selectedItems.length === 0">尚未选择任何服务或配件</view>
+      </view>
+
+      <view class="add-buttons-row">
+        <button class="btn btn-outline font-bold" @tap="openServicePicker">+ 选择服务项目</button>
+        <button class="btn btn-outline font-bold" @tap="openPartPicker">+ 选择配件材料</button>
+      </view>
+    </view>
+
     <!-- 底部合计与按钮 -->
     <view class="bottom-bar">
+      <view class="total-price-preview">
+        <text class="total-label">工单总计金额：</text>
+        <text class="total-val font-bold">¥{{ Number(totalAmount).toFixed(2) }}</text>
+      </view>
       <button class="submit-btn font-bold pulse-glow" :loading="submitting" @tap="submitOrder">确认接车开单</button>
     </view>
 
@@ -354,6 +393,59 @@
           <text class="brand-selection-preview text-gray" v-else>请选择品牌和车系</text>
           <button class="brand-confirm-btn" :disabled="!selectedSeries" @tap="confirmBrandSelection">确认选择</button>
         </view>
+      </view>
+    </view>
+
+    <!-- 🔧 服务项目选择器弹窗 -->
+    <view class="modal-mask" v-if="showServicePicker" @tap.self="showServicePicker = false">
+      <view class="modal-content premium-card">
+        <view class="modal-header">
+          <text class="modal-title font-bold">选择服务项目</text>
+          <text class="modal-close" @tap="showServicePicker = false">×</text>
+        </view>
+        
+        <view class="search-header compact">
+          <input class="search-input" v-model="serviceSearch" type="text" placeholder="搜索服务项目名称" />
+        </view>
+
+        <scroll-view class="scroll-list-picker" scroll-y="true">
+          <view class="select-row-card" v-for="item in filteredServices" :key="item.id" @tap="addServiceItem(item)">
+            <view class="row-info">
+              <text class="row-name font-bold">{{ item.name }}</text>
+              <text class="row-category">{{ item.category || '未分类' }}</text>
+            </view>
+            <text class="row-price font-bold">¥{{ Number(item.unitPrice).toFixed(2) }}</text>
+          </view>
+          <view class="brand-empty" v-if="filteredServices.length === 0">暂无匹配的服务项目</view>
+        </scroll-view>
+      </view>
+    </view>
+
+    <!-- 📦 配件材料选择器弹窗 -->
+    <view class="modal-mask" v-if="showPartPicker" @tap.self="showPartPicker = false">
+      <view class="modal-content premium-card">
+        <view class="modal-header">
+          <text class="modal-title font-bold">选择配件材料</text>
+          <text class="modal-close" @tap="showPartPicker = false">×</text>
+        </view>
+        
+        <view class="search-header compact">
+          <input class="search-input" v-model="partSearch" type="text" placeholder="搜索配件名称 / 编码" />
+        </view>
+
+        <scroll-view class="scroll-list-picker" scroll-y="true">
+          <view class="select-row-card" v-for="part in filteredParts" :key="part.id" @tap="addPartItem(part)">
+            <view class="row-info">
+              <text class="row-name font-bold">{{ part.name }}</text>
+              <text class="row-sub">编码: {{ part.code }} | 品牌: {{ part.brand || '无' }}</text>
+              <text class="row-stock" :class="getPartStock(part) <= part.minStock ? 'text-warning' : 'text-success'">
+                库存: {{ getPartStock(part) }} {{ part.unit || '个' }} (阀值: {{ part.minStock || 0 }})
+              </text>
+            </view>
+            <text class="row-price font-bold">¥{{ Number(part.salePrice).toFixed(2) }}</text>
+          </view>
+          <view class="brand-empty" v-if="filteredParts.length === 0">暂无匹配的配件材料</view>
+        </scroll-view>
       </view>
     </view>
   </view>
@@ -405,6 +497,109 @@ const precheckForm = ref({
 });
 const damageTypes = ['划痕', '凹陷', '碎裂', '缺失'];
 const precheckRecords = ref<any[]>([]);
+const selectedItems = ref<any[]>([]);
+const totalAmount = ref(0);
+
+const showServicePicker = ref(false);
+const serviceSearch = ref('');
+const serviceList = ref<any[]>([]);
+
+const showPartPicker = ref(false);
+const partSearch = ref('');
+const partList = ref<any[]>([]);
+
+const filteredServices = computed(() => {
+  if (!serviceSearch.value.trim()) return serviceList.value;
+  const kw = serviceSearch.value.toLowerCase().trim();
+  return serviceList.value.filter(s => s.name.toLowerCase().includes(kw));
+});
+
+const filteredParts = computed(() => {
+  if (!partSearch.value.trim()) return partList.value;
+  const kw = partSearch.value.toLowerCase().trim();
+  return partList.value.filter(p => p.name.toLowerCase().includes(kw) || p.code.toLowerCase().includes(kw));
+});
+
+function getPartStock(part: any): number {
+  if (!part.stockBalances || part.stockBalances.length === 0) return 0;
+  return part.stockBalances.reduce((sum: number, bal: any) => sum + Number(bal.quantity), 0);
+}
+
+async function openServicePicker() {
+  showServicePicker.value = true;
+  serviceSearch.value = '';
+  if (serviceList.value.length === 0) {
+    const token = uni.getStorageSync('accessToken');
+    const res: any = await request({
+      url: '/api/service-items?page=1&pageSize=100',
+      method: 'GET',
+      header: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data?.code === 0) {
+      serviceList.value = res.data.data.items || res.data.data || [];
+    }
+  }
+}
+
+async function openPartPicker() {
+  showPartPicker.value = true;
+  partSearch.value = '';
+  if (partList.value.length === 0) {
+    const token = uni.getStorageSync('accessToken');
+    const res: any = await request({
+      url: '/api/parts?page=1&pageSize=100',
+      method: 'GET',
+      header: { Authorization: `Bearer ${token}` }
+    });
+    if (res.data?.code === 0) {
+      partList.value = res.data.data.items || res.data.data || [];
+    }
+  }
+}
+
+function addServiceItem(item: any) {
+  selectedItems.value.push({
+    id: item.id,
+    itemType: 'service',
+    name: item.name,
+    quantity: 1,
+    unit: '工时',
+    unitPrice: Number(item.unitPrice)
+  });
+  calculateTotal();
+  showServicePicker.value = false;
+}
+
+function addPartItem(part: any) {
+  selectedItems.value.push({
+    id: part.id,
+    itemType: 'part',
+    name: part.name,
+    quantity: 1,
+    unit: part.unit || '个',
+    unitPrice: Number(part.salePrice)
+  });
+  calculateTotal();
+  showPartPicker.value = false;
+}
+
+function adjustItemQty(idx: number, delta: number) {
+  const item = selectedItems.value[idx];
+  if (item) {
+    const newVal = item.quantity + delta;
+    item.quantity = newVal < 1 ? 1 : newVal;
+  }
+  calculateTotal();
+}
+
+function removeSelectedItem(idx: number) {
+  selectedItems.value.splice(idx, 1);
+  calculateTotal();
+}
+
+function calculateTotal() {
+  totalAmount.value = selectedItems.value.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+}
 
 // 品牌车型选择器
 const brandLibrary = ref<BrandSeries[]>([]);
@@ -862,7 +1057,14 @@ async function submitOrder() {
         advisorId: userInfo.id,
         description: finalDescription || undefined,
         expectDate: expectDateTimeStr,
-        items: [] // 极速接车开单，服务项目由车间后期在详情页中精细化添加
+        items: selectedItems.value.map(i => ({
+          itemType: i.itemType,
+          serviceItemId: i.id,
+          name: i.name,
+          quantity: i.quantity,
+          unit: i.unit,
+          unitPrice: i.unitPrice
+        }))
       }
     });
 
@@ -1685,5 +1887,174 @@ onLoad(async (options: any) => {
   opacity: 0.4;
   background: #2c2c2e;
   color: #8e8e93;
+}
+
+/* Selected items list */
+.selected-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+.selected-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #161618;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid #2c2c2e;
+}
+.sel-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  flex: 1;
+}
+.sel-item-name {
+  font-size: 26rpx;
+  color: #ffffff;
+}
+.sel-item-badge {
+  font-size: 18rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 4rpx;
+  align-self: flex-start;
+  font-weight: bold;
+}
+.sel-item-badge.service {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+.sel-item-badge.part {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.sel-item-price-qty {
+  display: flex;
+  align-items: center;
+  gap: 30rpx;
+}
+.qty-adjust-box {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+.qty-btn {
+  width: 44rpx;
+  height: 44rpx;
+  line-height: 40rpx;
+  text-align: center;
+  background: #2c2c2e;
+  color: #ffffff;
+  border-radius: 6rpx;
+  font-size: 28rpx;
+}
+.qty-input {
+  width: 50rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: #ffffff;
+  font-weight: bold;
+  background: transparent;
+  border: none;
+}
+.qty-unit {
+  font-size: 20rpx;
+  color: #a1a1a9;
+}
+.sel-item-price {
+  font-size: 26rpx;
+  color: #f43f5e;
+  font-weight: bold;
+  width: 120rpx;
+  text-align: right;
+}
+.sel-item-del {
+  font-size: 28rpx;
+  color: #a1a1a9;
+  margin-left: 20rpx;
+  padding: 0 10rpx;
+}
+
+.add-buttons-row {
+  display: flex;
+  gap: 20rpx;
+}
+.btn-outline {
+  flex: 1;
+  height: 70rpx;
+  line-height: 70rpx;
+  background: transparent;
+  border: 1rpx dashed #3b82f6;
+  color: #3b82f6;
+  font-size: 24rpx;
+  border-radius: 35rpx;
+}
+
+.empty-items-tip {
+  text-align: center;
+  padding: 30rpx 0;
+  font-size: 24rpx;
+  color: #8e8e93;
+}
+
+.total-price-preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.total-label {
+  font-size: 20rpx;
+  color: #8e8e93;
+}
+.total-val {
+  font-size: 32rpx;
+  color: #f43f5e;
+}
+
+/* Modals */
+.scroll-list-picker {
+  max-height: 400rpx;
+  overflow-y: auto;
+  margin-top: 16rpx;
+}
+.select-row-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 20rpx;
+  background: #161618;
+  border: 1rpx solid #2c2c2e;
+  border-radius: 12rpx;
+  margin-bottom: 12rpx;
+}
+.row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  flex: 1;
+  margin-right: 16rpx;
+}
+.row-name {
+  font-size: 24rpx;
+  color: #ffffff;
+}
+.row-category {
+  font-size: 20rpx;
+  color: #8e8e93;
+}
+.row-sub {
+  font-size: 18rpx;
+  color: #8e8e93;
+}
+.row-stock {
+  font-size: 20rpx;
+  font-weight: bold;
+}
+.row-price {
+  font-size: 24rpx;
+  color: #f43f5e;
 }
 </style>

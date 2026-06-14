@@ -3,6 +3,8 @@ import { onLaunch, onShow, onHide } from '@dcloudio/uni-app';
 import { ref } from 'vue';
 import { setupAuthGuard, checkLaunchAuth } from './utils/auth-guard';
 import { useAuthStore } from './stores/auth';
+import { wxLogin } from './utils/wechat';
+import { request } from './utils/request';
 
 setupAuthGuard();
 
@@ -76,13 +78,44 @@ async function checkUnreadNotifications() {
   }
 }
 
+/**
+ * 尝试微信登录：wx.login → /auth/wechat/login
+ * - 已绑定 → 自动登录进首页
+ * - 未绑定 → 跳转 onboarding
+ */
+async function tryWechatLogin() {
+  try {
+    const code = await wxLogin();
+    const auth = useAuthStore();
+    const result = await auth.wechatLogin(code);
+
+    if (result.needBind) {
+      // 未绑定，跳转 onboarding
+      uni.reLaunch({
+        url: `/pages/onboarding/index?openid=${encodeURIComponent(result.openid || '')}`,
+      });
+    } else {
+      // 已绑定，进首页
+      uni.reLaunch({ url: '/pages/index/index' });
+    }
+  } catch (e: any) {
+    // 微信登录失败，跳转到登录页（密码登录兜底）
+    console.warn('微信登录失败:', e.message);
+    uni.reLaunch({ url: '/pages/login/login' });
+  }
+}
+
 onLaunch(() => {
-  checkLaunchAuth();
   const auth = useAuthStore();
+
   if (auth.isLoggedIn) {
+    // 已登录，直接进首页
     auth.fetchFeatureFlags();
     startPolling();
     checkUnreadNotifications();
+  } else {
+    // 未登录，尝试微信登录
+    tryWechatLogin();
   }
 
   uni.onNetworkStatusChange((res) => {

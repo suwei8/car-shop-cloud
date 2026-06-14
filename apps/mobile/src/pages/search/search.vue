@@ -118,6 +118,48 @@
         </view>
       </view>
 
+      <!-- 配件质保追溯 -->
+      <view class="section premium-card">
+        <view class="section-title">
+          <text class="prefix">🛡️</text>
+          <text>配件质保追溯 ({{ warrantyRecords.length }})</text>
+        </view>
+        
+        <view class="warranty-item" v-for="w in warrantyRecords" :key="w.id">
+          <view class="warranty-header">
+            <text class="warranty-part-name font-bold">{{ w.partName }}</text>
+            <text :class="['warranty-status-badge', w.isUnderWarranty ? 'in-warranty' : 'expired']">
+              {{ w.isUnderWarranty ? '在保中' : '已过期' }}
+            </text>
+          </view>
+          <view class="warranty-body">
+            <view class="warranty-row">
+              <text class="w-label">配件编码：</text>
+              <text class="w-val">{{ w.partCode || '无' }}</text>
+            </view>
+            <view class="warranty-row">
+              <text class="w-label">更换时间：</text>
+              <text class="w-val">{{ new Date(w.installedAt).toLocaleDateString() }}</text>
+            </view>
+            <view class="warranty-row">
+              <text class="w-label">质保期限：</text>
+              <text class="w-val">{{ w.warrantyMonths }} 个月</text>
+            </view>
+            <view class="warranty-row">
+              <text class="w-label">到期时间：</text>
+              <text class="w-val font-bold" :class="w.isUnderWarranty ? 'text-success' : 'text-gray'">
+                {{ new Date(w.warrantyUntil).toLocaleDateString() }}
+              </text>
+            </view>
+            <view class="warranty-row">
+              <text class="w-label">关联工单：</text>
+              <text class="w-val text-primary" @tap="goOrderDetail(w.workOrderId)">{{ w.workOrderNo }}</text>
+            </view>
+          </view>
+        </view>
+        <view class="no-asset" v-if="warrantyRecords.length === 0">该车辆暂无历史质保配件记录</view>
+      </view>
+
       <!-- 历史维修工单 -->
       <view class="section premium-card">
         <view class="section-title">
@@ -312,6 +354,7 @@ const selectedVehicle = ref<any>(null);
 const historyOrders = ref<any[]>([]);
 const memberCards = ref<any[]>([]);
 const packageCards = ref<any[]>([]);
+const warrantyRecords = ref<any[]>([]);
 
 // 储值卡 充值/办卡 表单 state
 const showRechargeModal = ref(false);
@@ -593,6 +636,22 @@ async function selectVehicle(vehicle: any) {
     if (pkgRes.data?.code === 0) {
       packageCards.value = pkgRes.data.data.items;
     }
+  }
+
+  // 4. 获取质保追溯记录
+  try {
+    const warrantyRes: any = await request({
+      url: `/api/warranty/vehicle/${vehicle.id}`,
+      method: 'GET',
+      header: { Authorization: `Bearer ${token}` }
+    });
+    if (warrantyRes.data?.code === 0) {
+      warrantyRecords.value = warrantyRes.data.data || [];
+    } else {
+      warrantyRecords.value = [];
+    }
+  } catch (err) {
+    warrantyRecords.value = [];
   }
 }
 
@@ -1338,5 +1397,57 @@ onMounted(() => {
 }
 .font-bold {
   font-weight: bold;
+}
+
+/* 配件质保追溯 */
+.warranty-item {
+  border-bottom: 1rpx solid #2c2c2e;
+  padding: 24rpx 0;
+}
+.warranty-item:last-child {
+  border-bottom: none;
+}
+.warranty-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+.warranty-part-name {
+  font-size: 26rpx;
+  color: #ffffff;
+}
+.warranty-status-badge {
+  font-size: 18rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 4rpx;
+  font-weight: bold;
+}
+.warranty-status-badge.in-warranty {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+.warranty-status-badge.expired {
+  background: rgba(142, 142, 147, 0.15);
+  color: #8e8e93;
+}
+.warranty-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.warranty-row {
+  display: flex;
+  font-size: 22rpx;
+}
+.w-label {
+  color: #a1a1a9;
+  width: 140rpx;
+}
+.w-val {
+  color: #ffffff;
+}
+.text-success {
+  color: #10b981;
 }
 </style>

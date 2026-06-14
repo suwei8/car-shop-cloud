@@ -1,15 +1,21 @@
 {
   "pages": [
     {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "工作台"
+      }
+    },
+    {
       "path": "pages/login/login",
       "style": {
         "navigationBarTitleText": "登录"
       }
     },
     {
-      "path": "pages/index/index",
+      "path": "pages/onboarding/index",
       "style": {
-        "navigationBarTitleText": "工作台"
+        "navigationBarTitleText": "注册开户"
       }
     },
     {
@@ -59,6 +65,12 @@
       "style": {
         "navigationBarTitleText": "消息通知"
       }
+    },
+    {
+      "path": "pages/stock/list",
+      "style": {
+        "navigationBarTitleText": "配件库存"
+      }
     }
   ],
   "globalStyle": {
@@ -86,7 +98,7 @@
         "selectedIconPath": "static/tabs/work.png"
       },
       {
-        "pagePath": "pages/member/card",
+        "pagePath": "pages/search/search",
         "text": "客户",
         "iconPath": "static/tabs/customer.png",
         "selectedIconPath": "static/tabs/customer.png"
