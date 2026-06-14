@@ -105,32 +105,39 @@ pnpm --filter @car/api test
 
 ### 5.1 执行摘要
 
-- 执行人：
-- 执行时间：
-- 总体结论：
+- 执行人：MiMoCode Agent
+- 执行时间：2026-06-14
+- 总体结论：全部通过，车主端后端尾巴已彻底清除
 
 ### 5.2 修改/删除文件清单
 
 | 文件 | 操作 | 说明 |
 |------|------|------|
-| | | |
+| apps/api/src/notification/providers/wechat-mp.provider.ts | 删除 | 微信 MP 推送 Provider（138 行） |
+| apps/api/src/notification/notification.module.ts | 修改 | 移除 WechatMpProvider 导入与注册 |
+| apps/api/src/notification/notification.service.ts | 修改 | 移除 wechat_mp 分支、WechatMpProvider 字段/构造函数、sendWechatMpOrFallback 方法 |
+| apps/api/src/notification/notification.service.spec.ts | 修改 | 将 wechat_mp 测试用例改为 unknown_channel，移除微信相关断言 |
+| apps/api/prisma/schema.prisma | 修改 | 删除 CustomerWxBinding 模型及 Tenant/Customer 反向关系字段 |
+| apps/api/prisma/migrations/20260613190000_remove_customer_wx_binding/migration.sql | 新增 | DROP 外键 + DROP TABLE customer_wx_bindings |
+| .env.example | 修改 | 移除 JWT_CUSTOMER_SECRET、WX_MINI_*、WX_TPL_* 配置块 |
+| .env.production.example | 修改 | 移除 JWT_CUSTOMER_SECRET、WX_MINI_*、WX_TPL_* 配置块 |
 
 ### 5.3 验收结果
 
 | 检查项 | 结果 | 证据/说明 |
 |--------|------|-----------|
-| wechat-mp.provider.ts 删除 | 通过/未通过 | |
-| 无残留引用(grep) | 通过/未通过 | 附 grep 输出 |
-| CustomerWxBinding 删除 + prisma validate | 通过/未通过 | |
-| 迁移仅 DROP 绑定表 | 通过/未通过 | 附迁移 SQL |
-| .env 配置清理 | 通过/未通过 | |
-| 短信链路不受影响 | 通过/未通过 | |
-| pnpm build:api | 通过/未通过 | |
-| 测试套件 | 通过/未通过 | 附通过数 |
+| wechat-mp.provider.ts 删除 | 通过 | 文件已删除 |
+| 无残留引用(grep) | 通过 | `grep -rn "WechatMp\|wechat-mp\|CustomerWxBinding\|customerWxBinding\|sendWechatMpOrFallback\|WX_MINI" apps/api/src apps/api/prisma .env.example .env.production.example` 输出 "OK: 无残留引用" |
+| CustomerWxBinding 删除 + prisma validate | 通过 | `prisma validate` 输出 "The schema at prisma/schema.prisma is valid 🚀" |
+| 迁移仅 DROP 绑定表 | 通过 | SQL: `ALTER TABLE "customer_wx_bindings" DROP CONSTRAINT "customer_wx_bindings_tenantId_fkey"; ALTER TABLE "customer_wx_bindings" DROP CONSTRAINT "customer_wx_bindings_customerId_fkey"; DROP TABLE "customer_wx_bindings";` |
+| .env 配置清理 | 通过 | .env.example 和 .env.production.example 已移除 JWT_CUSTOMER_SECRET、WX_MINI_*、WX_TPL_* |
+| 短信链路不受影响 | 通过 | sms 分支逻辑完整保留，MockSmsProvider/AliyunSmsProvider 未改动 |
+| pnpm build:api | 通过 | nest build 无错误 |
+| 测试套件 | 通过 | 25 suites / 241 tests 全部通过 |
 
 ### 5.4 遗留问题与建议
 
--
+- 无遗留问题。docs/ 目录下的任务文档中引用了已删除的符号名（如 TASK-109、TASK-204、TASK-208），这些是历史任务记录，不影响运行，建议后续文档清理时一并更新。
 
 ---
 

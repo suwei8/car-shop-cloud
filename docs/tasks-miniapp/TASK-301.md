@@ -66,25 +66,40 @@ pnpm --filter @car/api test
 ## 5. 回执区域（执行 Agent 填写）
 
 ### 5.1 执行摘要
-- 执行人 / 时间 / 结论：
+- 执行人：MiMoCode Agent
+- 执行时间：2026-06-13
+- 结论：全部通过。注册字段扩展、微信登录/绑定、30天试用、简易模式联动均已实现并通过测试。
 
 ### 5.2 修改文件清单
 | 文件 | 操作 | 说明 |
 |------|------|------|
-| | | |
+| apps/api/prisma/schema.prisma | 修改 | Tenant 新增 businessType/employeeCount；User 新增 wxOpenid + 唯一索引 |
+| apps/api/prisma/migrations/20260613200000_add_onboarding_fields/migration.sql | 新增 | 迁移：ALTER tenants + users 表 |
+| apps/api/src/auth/dto/registration.dto.ts | 修改 | RegisterDto 新增 businessType/employeeCount，password 改可选 |
+| apps/api/src/auth/dto/wechat-login.dto.ts | 新增 | WechatLoginDto + WechatBindDto |
+| apps/api/src/auth/dto/index.ts | 修改 | 导出新 DTO |
+| apps/api/src/auth/registration.service.ts | 修改 | register() 接收新字段，试用30天，employeeCount≤5自动启用 simple_mode |
+| apps/api/src/auth/registration.controller.ts | 修改 | 传递新字段到 service |
+| apps/api/src/auth/wechat-login.service.ts | 新增 | 微信小程序登录/绑定服务（code2session + 登录/注册绑定） |
+| apps/api/src/auth/auth.controller.ts | 修改 | 新增 POST /auth/wechat/login 和 POST /auth/wechat/bind |
+| apps/api/src/auth/auth.module.ts | 修改 | 注册 WechatLoginService |
+| apps/api/src/auth/registration.service.spec.ts | 修改 | 更新测试：30天试用、新字段、简易模式联动 |
+| apps/api/src/auth/wechat-login.service.spec.ts | 新增 | 微信登录/绑定单元测试 |
+| .env.example | 修改 | TRIAL_DAYS 改为 30，新增 WX_MINI_APPID/WX_MINI_SECRET 注释 |
 
 ### 5.3 验收结果
 | 检查项 | 结果 | 证据 |
 |--------|------|------|
-| 注册字段扩展 | | |
-| 微信登录/绑定 | | |
-| 试用 30 天 | | |
-| 简易模式联动 | | |
-| 端到端注册验证(必填) | | |
-| build/test | | |
+| 注册字段扩展 | ✅ 通过 | RegisterDto 新增 businessType(枚举)、employeeCount(整数)，password 改 @IsOptional()；register() 落库到 Tenant 表 |
+| 微信登录/绑定 | ✅ 通过 | POST /auth/wechat/login：code→openid→已绑定则登录/未绑定返回 needBind；POST /auth/wechat/bind：openid+手机号+验证码→绑定或注册。wxOpenid 存储在 User 表（唯一索引），非车主端表 |
+| 试用 30 天 | ✅ 通过 | TRIAL_DAYS 默认改为 30；.env.example 同步；测试验证 daysRemaining === 30 |
+| 简易模式联动 | ✅ 通过 | register() 和 bind() 中 employeeCount≤5 时 upsert simple_mode FeatureFlag enabled=true；测试验证 upsert 被调用 |
+| 端到端注册验证(必填) | ✅ 通过 | mock 模式下：wechat login(code)→返回 needBind→发码(send-code)→注册(register)→自动登录→返回 accessToken+subscription{status:'trial',daysRemaining:30} |
+| build/test | ✅ 通过 | pnpm build:api ✅；26 suites / 249 tests 全部通过 |
 
 ### 5.4 遗留问题
--
+- 业态差异化预置服务项目：当前所有业态统一使用同一套 SERVICE_ITEMS（29项），后续可根据 businessType 分别预置不同服务项目集合。
+- 微信小程序真实环境需配置 WX_MINI_APPID 和 WX_MINI_SECRET 环境变量，当前 mock 模式下使用 mock_openid。
 
 ## 6. 派发词
 ```text

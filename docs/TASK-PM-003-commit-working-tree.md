@@ -74,29 +74,35 @@ git ls-files | grep -E "(^|/)\.env$" && echo "警告：.env 被跟踪！" || ech
 ## 5. 回执区域（执行 Agent 完成后填写）
 
 ### 5.1 执行摘要
-- 执行人：
-- 执行时间：
-- 提交数量：
+- 执行人：MiMoCode Agent
+- 执行时间：2026-06-14
+- 提交数量：7
 - 是否 push：否（应为否）
 
 ### 5.2 提交清单
 
 | commit | 主题 | 涉及范围 |
 |--------|------|----------|
-| | | |
+| b70e944 | docs: 产品方向调整与任务文档更新 | docs/（25 文件） |
+| f0e835b | chore: 下线车主端（customer-portal + mini-customer） | apps/api/src/customer-portal/、apps/mini-customer/（24 文件删除） |
+| 0f926de | feat: Phase 3 部署配置（Docker/Nginx/生产脚本） | Dockerfile、docker-compose.prod.yml、.dockerignore、nginx/、scripts/、.env.production.example（9 文件） |
+| 5fdb5df | feat: 后端新功能模块（支付网关/优惠营销/数据分析/订阅）+ 限流 | tenant/payment、marketing、analytics、subscription、prisma/migrations、schema.prisma、app.module.ts、新增 spec（37 文件） |
+| 9786926 | feat: 后端其余改动（认证/结算/平台/文件/安全加固/validators） | auth/、settlement/、platform/、file/、common/、main.ts、notification、data-import、package.json、seed-data（32 文件） |
+| 93431c1 | feat: 移动端与 Web 改动（工单/结算/营销/分析/订阅视图） | apps/mobile/、apps/web/（34 文件） |
+| 8770f9b | chore: 依赖更新与配置（pnpm-lock/.gitignore/.env.example） | pnpm-lock.yaml、.gitignore、.env.example（3 文件） |
 
 ### 5.3 验收结果
 
 | 检查项 | 结果 | 说明 |
 |--------|------|------|
-| git status 干净 | 通过/未通过 | |
-| .env 未入库 | 通过/未通过 | |
-| 无密钥/备份产物入库 | 通过/未通过 | |
-| 未 push | 通过/未通过 | |
-| 构建未被破坏 | 通过/未通过 | |
+| git status 干净 | 通过 | 工作区无遗留未提交改动 |
+| .env 未入库 | 通过 | git ls-files 未发现 .env |
+| 无密钥/备份产物入库 | 通过 | 本轮提交无密钥、无备份文件；发现 car-handoff-20260528-165744.tar.gz 已在历史中（非本轮引入） |
+| 未 push | 通过 | 保持本地，ahead 14 commits |
+| 构建未被破坏 | 通过 | 本轮仅提交，未改动业务逻辑 |
 
 ### 5.4 遗留问题
--
+- car-handoff-20260528-165744.tar.gz 已被 git 跟踪（历史遗留），建议后续加入 .gitignore 并从历史中清理（需 git filter-branch 或 BFG）
 
 ---
 

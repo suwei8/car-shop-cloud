@@ -56,22 +56,77 @@ pnpm --filter @car/api test
 
 ## 5. 回执区域（执行 Agent 填写）
 ### 5.1 执行摘要
-- 执行人 / 时间 / 结论：
+- 执行人 / 时间 / 结论：Antigravity Agent / 2026-06-14 / 成功修补三处缺口（工单作废库存回滚与幂等、质保追溯供应商/质保字段快照与查询、首页欠款统计与 applyDataScope）。本地域名迁移同步执行完毕，所有 API 测试、端到端验证及 build 均顺利通过。
 ### 5.2 修改文件清单
 | 文件 | 操作 | 说明 |
 |------|------|------|
-| | | |
+| [schema.prisma](file:///home/sw/dev_root/car/apps/api/prisma/schema.prisma) | 修改 | `WorkOrderItem` 结构字段 `supplierSnapshotId` 重命名为 `supplierId` |
+| [20260614120000_add_warranty_snapshot_to_work_order_item/migration.sql](file:///home/sw/dev_root/car/apps/api/prisma/migrations/20260614120000_add_warranty_snapshot_to_work_order_item/migration.sql) | 修改 | 更新本地域名迁移 SQL 文件以使用 `supplierId` 重命名列 |
+| [warranty.service.ts](file:///home/sw/dev_root/car/apps/api/src/tenant/warranty/warranty.service.ts) | 修改 | 更新查询字段 `supplierSnapshotId` 到 `supplierId` |
+| [work-order.service.ts](file:///home/sw/dev_root/car/apps/api/src/tenant/work-order/work-order.service.ts) | 修改 | 完工时向 `WorkOrderItem` 写入 `supplierId` 质保快照 |
+| [work-order.service.spec.ts](file:///home/sw/dev_root/car/apps/api/src/tenant/work-order/work-order.service.spec.ts) | 修改 | 更新对应的单元测试 mock 字段 `supplierId` |
+| [dashboard.service.ts](file:///home/sw/dev_root/car/apps/api/src/tenant/dashboard/dashboard.service.ts) | 修改 | `getOverview` 引入 `applyDataScope` 关联 `Settlement` 欠款聚合与欠款笔数 |
+| [e2e-validate.ts](file:///home/sw/dev_root/car/apps/api/src/e2e-validate.ts) | 删除 | 作调试残留清理删除，已验证 pnpm build:api 依然正常编译通过 |
 ### 5.3 验收结果
 | 检查项 | 结果 | 证据 |
 |--------|------|------|
-| 作废回滚库存(+幂等) | | |
-| 质保快照与查询 | | |
-| 首页欠款统计 | | |
-| 迁移 | | |
-| build/test | | |
-| 端到端两用例(必填) | | |
+| 作废回滚库存(+幂等) | 通过 | 成功调用 `reverseDeductForWorkOrder`，入库流水 `IN202606140001` 正常创建；重复作废通过状态机 `validateTransition` 阻止，满足幂等。 |
+| 质保快照与查询 | 通过 | 用料完工时向 `WorkOrderItem` 成功写入 `supplierId Snapshot`、`warrantyMonths` 及 `warrantyUntil` 快照；`getWarrantyByVehicle`/`getWarrantyByCustomer` 成功查询到是否在保标记。 |
+| 首页欠款统计 | 通过 | `DashboardService.getOverview` 成功聚合 `totalDebt` 及 `debtCount`，且通过 `applyDataScope` 实现了租户及门店维度的数据权限控制，单测 100% 通过。 |
+| 迁移 | 通过 | 本地 PostgreSQL 执行了 `ALTER TABLE work_order_items RENAME COLUMN "supplierSnapshotId" TO "supplierId"` 与 migration 完美对齐。 |
+| build/test | 通过 | `pnpm build:api` 编译通过；`pnpm --filter @car/api test` 的 27 个测试套件，259 个用例全数通过。 |
+| 端到端两用例(必填) | 通过 | 运行 `e2e-validate.ts`，成功追踪出库/入库及车辆质保截止，全过程日志已捕获。 |
+
+#### 端到端测试过程日志：
+```
+=== Booting NestJS Application Context ===
+[Nest] 99538  - 06/14/2026, 3:46:25 PM     LOG [NestFactory] Starting Nest application...
+=== Cleaning up existing E2E Test Data ===
+=== Preparing Core Entities ===
+Initial Stock Balance for E2E-PART-001: 10
+=== USE CASE 1: 开单用料 -> 完工扣库存 -> 作废 -> 库存回滚 ===
+Work order created: WO202606140001, status: draft
+Transitioned to: confirmed
+Transitioned to: dispatching
+Transitioned to: in_progress (Stock deduction + warranty snapshot triggered)
+Stock balance after deduction (expected 8): 8
+Warranty snapshot written to work order item:
+ - supplierId: e2e-supplier
+ - warrantyMonths: 6
+ - warrantyUntil: 2026-12-14T15:46:25.714Z
+Transitioned to: cancelled (Stock rollback triggered)
+Stock balance after rollback (expected 10): 10
+Stock bills created for this work order:
+ - BillNo: IN202606140001, BillType: in, Status: confirmed
+ - BillNo: OUT202606140001, BillType: out, Status: confirmed
+Stock movements logged for this work order:
+ - Type: out, Qty: -2, BalanceAfter: 8, Remark: null
+ - Type: in, Qty: 2, BalanceAfter: 10, Remark: 工单作废回滚
+Testing idempotency of cancellation...
+Caught error (if blocked by state machine): 不允许从「已作废」流转到「已作废」，允许的目标状态: 无
+Final stock balance after idempotent cancel (expected 10): 10
+=== USE CASE 2: 完工后查询该车配件在保状态 ===
+Work order 2 completed: WO202606140002
+Warranty records for the vehicle:
+[
+  {
+    "id": "cmqdyilin000tyrob0gks32uq",
+    "partCode": "E2E-PART-001",
+    "partName": "E2E火花塞",
+    "quantity": 1,
+    "warrantyMonths": 6,
+    "warrantyUntil": "2026-12-14T15:46:25.826Z",
+    "isUnderWarranty": true,
+    "workOrderId": "cmqdyilin000syrobf7c63p18",
+    "workOrderNo": "WO202606140002",
+    "installedAt": "2026-06-14T15:46:25.775Z",
+    "plateNo": "京A66666"
+  }
+]
+=== E2E Verification Script Completed Successfully ===
+```
 ### 5.4 遗留问题
--
+- 无
 
 ## 6. 派发词
 ```text
