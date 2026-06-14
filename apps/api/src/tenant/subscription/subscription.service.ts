@@ -178,7 +178,7 @@ export class SubscriptionService {
     const payment = await this.prisma.payment.create({
       data: {
         tenantId: user.tenantId!,
-        settlementId: '', // Will be linked via subscription order
+        settlementId: null, // Will be linked via subscription order
         payMethod: dto.paymentMethod,
         amount: order.amount,
         status: 'pending',
@@ -195,11 +195,15 @@ export class SubscriptionService {
     const result = await this.paymentGatewayService.createPaymentOrder(
       payment.id,
       dto.paymentMethod as 'wechat' | 'alipay',
-      { openid: dto.openid },
+      {
+        tradeType: dto.openid ? 'JSAPI' : 'NATIVE',
+        openid: dto.openid,
+      },
     );
 
     return {
       codeUrl: result.codeUrl,
+      jsapiParams: result.jsapiParams,
       orderId: order.id,
     };
   }
@@ -257,13 +261,21 @@ export class SubscriptionService {
     };
   }
 
-  async handleSubscriptionPaymentCallback(orderNo: string, transactionId: string) {
+  async handleSubscriptionPaymentCallback(orderNo: string, transactionId: string, callbackAmountCents?: number) {
     const order = await this.prisma.subscriptionOrder.findFirst({
       where: { orderNo },
     });
     if (!order) {
       this.logger.warn(`Subscription order not found: ${orderNo}`);
       return;
+    }
+
+    if (callbackAmountCents !== undefined) {
+      const expectedCents = Math.round(Number(order.amount) * 100);
+      if (expectedCents !== callbackAmountCents) {
+        this.logger.error(`Subscription callback amount mismatch: expected ${expectedCents} cents, got ${callbackAmountCents} cents`);
+        throw new BadRequestException('金额不一致');
+      }
     }
 
     if (order.status === 'paid') {

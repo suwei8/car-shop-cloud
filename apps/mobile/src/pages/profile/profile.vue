@@ -57,7 +57,11 @@
           </text>
         </view>
       </view>
-      <view class="sub-status-box text-center" v-else>
+      <!-- ⚠️ 试用到期前7天提示续费 -->
+      <view class="expiry-warning-bar" v-if="subscription && subscription.status === 'trial' && subscription.daysRemaining <= 7">
+        <text class="warning-text">⚠️ 您的免费试用期还有 {{ subscription.daysRemaining }} 天即将到期，为避免业务受影响，请尽快进行续费！</text>
+      </view>
+      <view class="sub-status-box text-center" v-else-if="!subscription">
         <text class="sub-val text-gray">未获取到当前套餐状态</text>
       </view>
     </view>
@@ -358,24 +362,89 @@ async function submitRenew() {
       url: '/api/subscription/orders',
       method: 'POST',
       header: { Authorization: `Bearer ${token}` },
-      data: { planId: selectedPlanId.value, months: 12 }
+      data: { planId: selectedPlanId.value, months: 12, paymentMethod: 'wechat' }
     });
     
     if (orderRes.data?.code === 0 && orderRes.data.data) {
       const order = orderRes.data.data;
       
+      // Get WeChat openid (simulated/mocked if in mock environment)
+      let openid = 'mock_openid';
+      try {
+        const loginRes = await new Promise<any>((resolve, reject) => {
+          uni.login({
+            success: (res) => resolve(res),
+            fail: (err) => reject(err),
+          });
+        });
+        if (loginRes.code) {
+          openid = 'mock_openid_' + loginRes.code;
+        }
+      } catch (err) {
+        // Ignore or use mock
+      }
+
       // 2. 发起支付
       const payRes: any = await request({
         url: `/api/subscription/orders/${order.id}/pay`,
         method: 'POST',
         header: { Authorization: `Bearer ${token}` },
-        data: { payMethod: 'wechat' }
+        data: { paymentMethod: 'wechat', openid }
       });
       
-      if (payRes.data?.code === 0) {
-        uni.showToast({ title: '套餐升级/续费成功', icon: 'success' });
-        showRenewModal.value = false;
-        await fetchSubscription();
+      if (payRes.data?.code === 0 && payRes.data.data) {
+        const payData = payRes.data.data;
+        
+        // 3. 调起支付
+        if (payData.jsapiParams) {
+          // WeChat Mini Program payment invocation
+          uni.requestPayment({
+            provider: 'wxpay',
+            timeStamp: payData.jsapiParams.timeStamp,
+            nonceStr: payData.jsapiParams.nonceStr,
+            package: payData.jsapiParams.package,
+            signType: payData.jsapiParams.signType,
+            paySign: payData.jsapiParams.paySign,
+            success: async () => {
+              uni.showToast({ title: '微信支付成功', icon: 'success' });
+              showRenewModal.value = false;
+              await fetchSubscription();
+            },
+            fail: async (err) => {
+              console.warn('微信支付失败或取消，准备进入模拟支付', err);
+              // For sandbox/mock test ease, simulate successful mock payment callback
+              if (payData.jsapiParams.appId === 'mock_appid') {
+                uni.showLoading({ title: '模拟支付回调中...' });
+                try {
+                  const amtCents = Math.round(Number(order.amount) * 100);
+                  const cbRes: any = await request({
+                    url: '/api/payment-callbacks/wechat',
+                    method: 'POST',
+                    data: {
+                      outTradeNo: order.orderNo,
+                      amount: amtCents
+                    }
+                  });
+                  if (cbRes.statusCode === 200 || cbRes.data?.code === 'SUCCESS') {
+                    uni.showToast({ title: '模拟支付成功', icon: 'success' });
+                    showRenewModal.value = false;
+                    await fetchSubscription();
+                  } else {
+                    uni.showToast({ title: '模拟回调失败', icon: 'none' });
+                  }
+                } catch (cbErr) {
+                  uni.showToast({ title: '模拟支付异常', icon: 'none' });
+                } finally {
+                  uni.hideLoading();
+                }
+              } else {
+                uni.showToast({ title: '支付未完成', icon: 'none' });
+              }
+            }
+          });
+        } else {
+          uni.showToast({ title: '套餐已下单，请在电脑端完成支付', icon: 'none' });
+        }
       } else {
         uni.showToast({ title: payRes.data?.message || '支付失败', icon: 'none' });
       }
@@ -675,6 +744,18 @@ onMounted(async () => {
   padding: 20rpx;
   border-radius: 12rpx;
   border: 1rpx solid rgba(255,255,255,0.02);
+}
+.expiry-warning-bar {
+  margin-top: 16rpx;
+  background: rgba(244, 63, 94, 0.12);
+  border: 1rpx solid rgba(244, 63, 94, 0.25);
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+}
+.warning-text {
+  font-size: 22rpx;
+  color: #f43f5e;
+  line-height: 1.4;
 }
 .sub-row {
   display: flex;

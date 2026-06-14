@@ -17,9 +17,10 @@ interface MockOrder {
 
 @Injectable()
 export class MockPayProvider implements PaymentProvider {
-  readonly method = 'mock' as const;
   private logger = new Logger('MockPay');
   private orders: Map<string, MockOrder> = new Map();
+
+  constructor(public readonly method: 'mock' | 'wechat' | 'alipay' = 'mock') {}
 
   async createOrder(params: CreateOrderParams): Promise<CreateOrderResult> {
     this.orders.set(params.outTradeNo, {
@@ -27,9 +28,26 @@ export class MockPayProvider implements PaymentProvider {
       amount: params.amount,
       createdAt: Date.now(),
     });
-    this.logger.log(`[MockPay] createOrder: ${params.outTradeNo} amount=${params.amount}`);
+    this.logger.log(`[MockPay] createOrder: ${params.outTradeNo} amount=${params.amount} tradeType=${params.tradeType}`);
+
+    const prepayId = `mock_prepay_${Date.now()}`;
+    let jsapiParams: CreateOrderResult['jsapiParams'] | undefined;
+
+    if (params.tradeType === 'JSAPI') {
+      jsapiParams = {
+        appId: 'mock_appid',
+        timeStamp: Math.floor(Date.now() / 1000).toString(),
+        nonceStr: 'mock_nonce_str_32_chars_long_random',
+        package: `prepay_id=${prepayId}`,
+        signType: 'RSA',
+        paySign: 'mock_signature_for_jsapi_payment',
+      };
+    }
+
     return {
       codeUrl: `https://mock-pay.example.com/qr/${params.outTradeNo}`,
+      prepayId,
+      jsapiParams,
     };
   }
 

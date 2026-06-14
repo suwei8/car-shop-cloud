@@ -821,7 +821,7 @@ model Settlement {
 model Payment {
   id            String   @id @default(cuid())
   tenantId      String
-  settlementId  String
+  settlementId  String?
   payMethod     String   // cash, wechat, alipay, card, stored_value, package_card
   amount        Decimal  @db.Decimal(12, 2)
   referenceNo   String?  // 外部流水号
@@ -835,8 +835,8 @@ model Payment {
   expiredAt     DateTime? // 支付超时时间（默认下单后 15 分钟）
   createdAt     DateTime @default(now())
 
-  tenant     Tenant     @relation(fields: [tenantId], references: [id])
-  settlement Settlement @relation(fields: [settlementId], references: [id])
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  settlement Settlement? @relation(fields: [settlementId], references: [id])
   refunds    PaymentRefund[]
 
   @@index([tenantId])

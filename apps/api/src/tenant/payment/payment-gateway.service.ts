@@ -38,7 +38,7 @@ export class PaymentGatewayService {
     paymentId: string,
     method: 'wechat' | 'alipay',
     options?: { tradeType?: 'NATIVE' | 'JSAPI'; openid?: string },
-  ): Promise<{ codeUrl?: string; prepayId?: string }> {
+  ): Promise<{ codeUrl?: string; prepayId?: string; jsapiParams?: any }> {
     const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
     if (!payment) throw new NotFoundException('支付记录不存在');
     if (payment.status !== 'pending' && payment.status !== 'paid') {
@@ -79,7 +79,7 @@ export class PaymentGatewayService {
 
     this.logger.log(`createPaymentOrder: ${paymentId} method=${method}`);
 
-    return { codeUrl: result.codeUrl, prepayId: result.prepayId };
+    return { codeUrl: result.codeUrl, prepayId: result.prepayId, jsapiParams: result.jsapiParams };
   }
 
   async handleCallback(method: string, headers: Record<string, string>, body: string | Buffer): Promise<void> {
@@ -104,9 +104,11 @@ export class PaymentGatewayService {
         await subService.handleSubscriptionPaymentCallback(
           result.outTradeNo,
           result.transactionId || '',
+          result.amount,
         );
       } catch (err) {
         this.logger.error(`handleCallback: subscription callback error: ${err}`);
+        throw err;
       }
       await this.auditService.log({
         action: 'payment_callback',
@@ -155,10 +157,12 @@ export class PaymentGatewayService {
       },
     });
 
-    const settlement = await this.prisma.settlement.findUnique({
-      where: { id: payment.settlementId },
-      include: { payments: true },
-    });
+    const settlement = payment.settlementId
+      ? await this.prisma.settlement.findUnique({
+          where: { id: payment.settlementId },
+          include: { payments: true },
+        })
+      : null;
 
     if (settlement && settlement.status === 'pending_payment') {
       const allPaid = settlement.payments.every(
@@ -210,10 +214,12 @@ export class PaymentGatewayService {
               },
             });
 
-            const settlement = await this.prisma.settlement.findUnique({
-              where: { id: payment.settlementId },
-              include: { payments: true },
-            });
+            const settlement = payment.settlementId
+              ? await this.prisma.settlement.findUnique({
+                  where: { id: payment.settlementId },
+                  include: { payments: true },
+                })
+              : null;
             if (settlement && settlement.status === 'pending_payment') {
               const allPaid = settlement.payments.every(
                 (p) => p.id === paymentId || p.status === 'paid',

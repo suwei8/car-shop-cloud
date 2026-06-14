@@ -69,9 +69,33 @@ export class WechatPayProvider implements PaymentProvider {
 
     this.logger.log(`createOrder: ${params.outTradeNo}`);
 
+    const prepayId = resp.data.prepay_id;
+    let jsapiParams: CreateOrderResult['jsapiParams'] | undefined;
+
+    if (params.tradeType === 'JSAPI' && prepayId) {
+      const timeStamp = Math.floor(Date.now() / 1000).toString();
+      const nonceStr = this.randomStr(32);
+      const pkg = `prepay_id=${prepayId}`;
+      const message = `${this.appid}\n${timeStamp}\n${nonceStr}\n${pkg}\n`;
+
+      const sign = crypto.createSign('RSA-SHA256');
+      sign.update(message);
+      const paySign = sign.sign(this.privateKey || 'mock_key', 'base64');
+
+      jsapiParams = {
+        appId: this.appid,
+        timeStamp,
+        nonceStr,
+        package: pkg,
+        signType: 'RSA',
+        paySign,
+      };
+    }
+
     return {
       codeUrl: resp.data.code_url,
-      prepayId: resp.data.prepay_id,
+      prepayId,
+      jsapiParams,
     };
   }
 

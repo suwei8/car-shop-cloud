@@ -18,7 +18,9 @@ import { AlipayProvider } from './providers/alipay.provider';
         const providers: PaymentProvider[] = [];
 
         if (provider === 'mock') {
-          providers.push(new MockPayProvider());
+          providers.push(new MockPayProvider('mock'));
+          providers.push(new MockPayProvider('wechat'));
+          providers.push(new MockPayProvider('alipay'));
         } else {
           if (provider === 'wechat' || provider === 'all') {
             providers.push(new WechatPayProvider(config));
@@ -29,7 +31,7 @@ import { AlipayProvider } from './providers/alipay.provider';
         }
 
         if (providers.length === 0) {
-          providers.push(new MockPayProvider());
+          providers.push(new MockPayProvider('mock'));
         }
 
         return providers;

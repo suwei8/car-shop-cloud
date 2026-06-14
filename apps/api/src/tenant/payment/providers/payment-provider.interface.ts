@@ -11,6 +11,14 @@ export interface CreateOrderResult {
   codeUrl?: string;
   prepayId?: string;
   transactionId?: string;
+  jsapiParams?: {
+    appId: string;
+    timeStamp: string;
+    nonceStr: string;
+    package: string;
+    signType: string;
+    paySign: string;
+  };
 }
 
 export interface QueryOrderResult {
