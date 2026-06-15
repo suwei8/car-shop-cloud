@@ -89,25 +89,25 @@
         "pagePath": "pages/index/index",
         "text": "工作台",
         "iconPath": "static/tabs/home.png",
-        "selectedIconPath": "static/tabs/home.png"
+        "selectedIconPath": "static/tabs/home_active.png"
       },
       {
         "pagePath": "pages/workorder/list",
         "text": "工单",
         "iconPath": "static/tabs/work.png",
-        "selectedIconPath": "static/tabs/work.png"
+        "selectedIconPath": "static/tabs/work_active.png"
       },
       {
         "pagePath": "pages/search/search",
         "text": "客户",
         "iconPath": "static/tabs/customer.png",
-        "selectedIconPath": "static/tabs/customer.png"
+        "selectedIconPath": "static/tabs/customer_active.png"
       },
       {
         "pagePath": "pages/profile/profile",
         "text": "我的",
         "iconPath": "static/tabs/profile.png",
-        "selectedIconPath": "static/tabs/profile.png"
+        "selectedIconPath": "static/tabs/profile_active.png"
       }
     ]
   }

@@ -35,7 +35,7 @@
       "port": 5174,
       "proxy": {
         "/api": {
-          "target": "http://localhost:3000",
+          "target": "https://car-api.13982.com",
           "changeOrigin": true
         }
       }
@@ -43,6 +43,7 @@
   },
   "mp-weixin": {
     "appid": "wxbce66a341a164179",
+    "libVersion": "3.4.0",
     "setting": {
       "urlCheck": false,
       "es6": true,

@@ -161,7 +161,20 @@ async function handleSendCode() {
       data: { phone: form.phone },
     });
     if (res.data?.code === 0) {
-      uni.showToast({ title: '验证码已发送', icon: 'none' });
+      const debugCode = res.data?.data?.code;
+      if (debugCode) {
+        uni.showModal({
+          title: '调试提示',
+          content: `您的验证码是: ${debugCode} (本弹窗仅在开发调试环境下显示)`,
+          showCancel: false,
+          confirmText: '自动填写',
+          success: () => {
+            form.smsCode = debugCode;
+          }
+        });
+      } else {
+        uni.showToast({ title: '验证码已发送', icon: 'none' });
+      }
       startCountdown();
     } else {
       uni.showToast({ title: res.data?.message || '发送失败', icon: 'none' });

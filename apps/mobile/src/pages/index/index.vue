@@ -272,7 +272,9 @@ onMounted(async () => {
   }
 
   // 获取 Feature Flags
-  await auth.fetchFeatureFlags();
+  if (typeof auth.fetchFeatureFlags === 'function') {
+    await auth.fetchFeatureFlags();
+  }
   simpleMode.value = auth.simpleMode;
 });
 </script>

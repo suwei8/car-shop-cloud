@@ -29,7 +29,7 @@ async function checkUnreadNotifications() {
     const res: any = await new Promise((resolve, reject) => {
       const baseUrl = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'production')
         ? 'https://car-api.13982.com'
-        : 'http://localhost:3000';
+        : 'https://car-api.13982.com';
       const url = `${baseUrl}/api/notifications/unread`;
       if (typeof window !== 'undefined' && typeof XMLHttpRequest !== 'undefined') {
         const xhr = new XMLHttpRequest();
@@ -80,8 +80,9 @@ onLaunch(() => {
   const auth = useAuthStore();
 
   if (auth.isLoggedIn) {
-    // 已登录，直接进首页
-    auth.fetchFeatureFlags();
+    if (typeof auth.fetchFeatureFlags === 'function') {
+      auth.fetchFeatureFlags();
+    }
     startPolling();
     checkUnreadNotifications();
   } else {

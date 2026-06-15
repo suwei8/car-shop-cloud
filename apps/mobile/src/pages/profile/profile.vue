@@ -566,18 +566,35 @@ onMounted(async () => {
   const info = uni.getStorageSync('userInfo');
   if (info) {
     userInfo.value = typeof info === 'string' ? JSON.parse(info) : info;
-    if (userInfo.value.shopId) {
+  }
+  
+  // 自动从后端拉取最新用户信息以同步最新的 shopId 并更新本地存储
+  try {
+    const token = uni.getStorageSync('accessToken');
+    const meRes: any = await request({
+      url: '/api/auth/me',
+      method: 'POST',
+      header: { Authorization: `Bearer ${token}` }
+    });
+    if (meRes.data?.code === 0 && meRes.data.data) {
+      const latestUser = meRes.data.data;
+      userInfo.value = { ...userInfo.value, ...latestUser };
+      uni.setStorageSync('userInfo', userInfo.value);
+    }
+  } catch (err) {}
+
+  if (userInfo.value.shopId) {
+    try {
       const token = uni.getStorageSync('accessToken');
-      request({
+      const shopRes: any = await request({
         url: `/api/shops/${userInfo.value.shopId}`,
         method: 'GET',
         header: { Authorization: `Bearer ${token}` }
-      }).then((res: any) => {
-        if (res.data?.code === 0) {
-          shop.value = res.data.data;
-        }
-      }).catch(() => {});
-    }
+      });
+      if (shopRes.data?.code === 0) {
+        shop.value = shopRes.data.data;
+      }
+    } catch (err) {}
   }
   
   await fetchSubscription();
