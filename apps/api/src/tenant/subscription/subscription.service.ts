@@ -58,7 +58,7 @@ export class SubscriptionService {
       where: { id: user.tenantId! },
       include: {
         subscriptions: {
-          where: { status: 'active' },
+          where: { status: { in: ['active', 'trial'] } },
           orderBy: { endAt: 'desc' },
           take: 1,
           include: { plan: true },

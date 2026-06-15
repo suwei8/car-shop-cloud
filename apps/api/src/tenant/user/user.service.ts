@@ -59,7 +59,7 @@ export class UserService {
       include: {
         subscriptions: {
           include: { plan: true },
-          where: { status: 'active', endAt: { gte: new Date() } },
+          where: { status: { in: ['active', 'trial'] }, endAt: { gte: new Date() } },
           take: 1,
         },
       },
