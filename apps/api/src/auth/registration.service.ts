@@ -35,7 +35,11 @@ export class RegistrationService {
     });
 
     this.logger.log(`Verification code sent to ${phone.slice(0, 3)}****${phone.slice(-4)}`);
-    return { message: '验证码已发送' };
+    const isDev = process.env.NODE_ENV !== 'production';
+    return { 
+      message: '验证码已发送',
+      ...(isDev ? { code } : {})
+    };
   }
 
   async register(data: {
@@ -111,21 +115,23 @@ export class RegistrationService {
         '管理员',
       );
 
-      // 4. 默认启用简易模式（面向小店，单店版）
-      const simpleModeFlag = await tx.featureFlag.findUnique({
-        where: { code: 'simple_mode' },
-      });
-      if (simpleModeFlag) {
-        await tx.tenantFeatureFlag.upsert({
-          where: {
-            tenantId_featureFlagId: {
-              tenantId: tenant.id,
-              featureFlagId: simpleModeFlag.id,
-            },
-          },
-          update: { enabled: true },
-          create: { tenantId: tenant.id, featureFlagId: simpleModeFlag.id, enabled: true },
+      // 4. 默认启用简易模式（面向 1-5 人小店；员工数 > 5 不默认开启）
+      if (employeeCount == null || employeeCount <= 5) {
+        const simpleModeFlag = await tx.featureFlag.findUnique({
+          where: { code: 'simple_mode' },
         });
+        if (simpleModeFlag) {
+          await tx.tenantFeatureFlag.upsert({
+            where: {
+              tenantId_featureFlagId: {
+                tenantId: tenant.id,
+                featureFlagId: simpleModeFlag.id,
+              },
+            },
+            update: { enabled: true },
+            create: { tenantId: tenant.id, featureFlagId: simpleModeFlag.id, enabled: true },
+          });
+        }
       }
 
       return tenant;

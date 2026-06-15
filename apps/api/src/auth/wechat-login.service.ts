@@ -78,9 +78,10 @@ export class WechatLoginService {
     shopName?: string;
     businessType?: string;
     employeeCount?: number;
+    address?: string;
     ip: string;
   }): Promise<{ accessToken: string; refreshToken: string; user: any; subscription?: any }> {
-    const { code, phone, smsCode, shopName, businessType, employeeCount, ip } = data;
+    const { code, phone, smsCode, shopName, businessType, employeeCount, address, ip } = data;
 
     // 1. 用 code 换 openid
     const openid = await this.code2Session(code);
@@ -167,6 +168,7 @@ export class WechatLoginService {
         phone,
         passwordHash,
         '管理员',
+        address,
       );
 
       // 8. 默认启用简易模式（面向小店，单店版）
@@ -247,6 +249,10 @@ export class WechatLoginService {
       const data = (await res.json()) as WechatSessionResult;
 
       if (data.errcode) {
+        if (process.env.NODE_ENV !== 'production') {
+          this.logger.warn(`微信 jscode2session 失败 (${data.errcode}: ${data.errmsg}), 开发模式下降级使用 Mock OpenID`);
+          return `mock_openid_${code}`;
+        }
         throw new BadRequestException(`微信登录失败: ${data.errmsg}`);
       }
 
@@ -254,6 +260,10 @@ export class WechatLoginService {
     } catch (err) {
       if (err instanceof BadRequestException) throw err;
       this.logger.error(`微信 code2session 请求失败: ${err.message}`);
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.warn('开发模式下，微信服务请求异常，降级使用 Mock OpenID');
+        return `mock_openid_${code}`;
+      }
       throw new BadRequestException('微信登录服务异常，请稍后重试');
     }
   }

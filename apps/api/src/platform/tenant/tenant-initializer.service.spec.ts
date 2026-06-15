@@ -8,6 +8,7 @@ const mockPrisma = {
   rolePermission: { create: jest.fn() },
   user: { create: jest.fn() },
   userRole: { create: jest.fn() },
+  employee: { create: jest.fn() },
   serviceItem: { create: jest.fn() },
   dictionary: { create: jest.fn() },
 };
@@ -48,6 +49,7 @@ describe('TenantInitializerService', () => {
     mockPrisma.role.create.mockResolvedValue({ id: 'role-1' });
     mockPrisma.role.findFirst.mockResolvedValue({ id: 'role-admin' });
     mockPrisma.user.create.mockResolvedValue({ id: 'user-1' });
+    mockPrisma.employee.create.mockResolvedValue({ id: 'emp-1' });
     service = new TenantInitializerService(mockPrisma as any);
   });
 
@@ -97,6 +99,16 @@ describe('TenantInitializerService', () => {
     // 验证角色绑定
     expect(mockPrisma.userRole.create).toHaveBeenCalledWith({
       data: { userId: 'user-1', roleId: 'role-admin' },
+    });
+
+    // 验证管理员员工记录创建并绑定默认门店
+    expect(mockPrisma.employee.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        shopId: 'shop-1',
+        status: 'active',
+      }),
     });
   });
 

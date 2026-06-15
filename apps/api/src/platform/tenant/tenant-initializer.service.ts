@@ -93,6 +93,7 @@ export class TenantInitializerService {
     adminPhone: string,
     adminPasswordHash: string,
     adminName: string,
+    shopAddress?: string,
   ): Promise<InitializeResult> {
     this.logger.log(`Initializing tenant: ${tenantId} (${tenantName})`);
 
@@ -101,6 +102,7 @@ export class TenantInitializerService {
       data: {
         tenantId,
         name: `${tenantName}（总店）`,
+        address: shopAddress,
         status: 'active',
       },
     });
@@ -167,6 +169,18 @@ export class TenantInitializerService {
       });
     }
     this.logger.log(`  Created admin user: ${adminUser.id}`);
+
+    // 创建对应的员工记录并绑定默认门店
+    const employee = await tx.employee.create({
+      data: {
+        userId: adminUser.id,
+        tenantId,
+        shopId: shop.id,
+        position: '管理员',
+        status: 'active',
+      },
+    });
+    this.logger.log(`  Created employee record for admin: ${employee.id}`);
 
     // 5. 预置服务项目
     let serviceItemCount = 0;

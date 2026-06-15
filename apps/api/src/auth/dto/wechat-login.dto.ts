@@ -39,4 +39,9 @@ export class WechatBindDto {
   @IsInt()
   @Min(1, { message: '员工数至少为1' })
   employeeCount?: number;
+
+  @ApiPropertyOptional({ example: '北京市朝阳区xxx路xxx号' })
+  @IsOptional()
+  @IsString()
+  address?: string;
 }
