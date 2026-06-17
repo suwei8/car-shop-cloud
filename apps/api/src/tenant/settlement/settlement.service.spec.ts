@@ -11,6 +11,7 @@ describe('SettlementService', () => {
   let service: SettlementService;
   let prisma: Record<string, any>;
   let packageCardService: Record<string, any>;
+  let paymentGatewayService: Record<string, any>;
 
   const mockUser: JwtPayload = {
     sub: 'user-1',
@@ -36,6 +37,7 @@ describe('SettlementService', () => {
       },
       payment: {
         findMany: jest.fn(),
+        findFirst: jest.fn(),
         count: jest.fn(),
         deleteMany: jest.fn(),
       },
@@ -68,7 +70,7 @@ describe('SettlementService', () => {
 
     packageCardService = { redeem: jest.fn() };
 
-    const mockPaymentGatewayService = {
+    paymentGatewayService = {
       createPaymentOrder: jest.fn().mockResolvedValue({ codeUrl: 'mock-url' }),
       queryPaymentStatus: jest.fn().mockResolvedValue({ status: 'pending' }),
       refund: jest.fn(),
@@ -83,7 +85,7 @@ describe('SettlementService', () => {
         SettlementService,
         { provide: PrismaService, useValue: prisma },
         { provide: PackageCardService, useValue: packageCardService },
-        { provide: PaymentGatewayService, useValue: mockPaymentGatewayService },
+        { provide: PaymentGatewayService, useValue: paymentGatewayService },
         { provide: MarketingService, useValue: mockMarketingService },
       ],
     }).compile();
@@ -109,6 +111,9 @@ describe('SettlementService', () => {
       );
 
       expect(result.settleNo).toMatch(/^ST\d{8}\d{4}$/);
+      expect(prisma.workOrder.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ id: 'wo-1', tenantId: 'tenant-1', shopId: 'shop-1' }),
+      }));
       expect(prisma.workOrder.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ status: 'settled' }),
@@ -307,14 +312,64 @@ describe('SettlementService', () => {
     });
   });
 
-  describe('findAll', () => {
-    it('分页和租户隔离', async () => {
+  describe('findAll / findOne / payments 数据范围', () => {
+    it('结算单列表按门店数据范围过滤', async () => {
       prisma.settlement.findMany.mockResolvedValue([]);
       prisma.settlement.count.mockResolvedValue(0);
 
       const result = await service.findAll(mockUser, { page: 1, pageSize: 10 });
 
       expect(result.page).toBe(1);
+      expect(prisma.settlement.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ tenantId: 'tenant-1', shopId: 'shop-1' }),
+      }));
+      expect(prisma.settlement.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({ tenantId: 'tenant-1', shopId: 'shop-1' }),
+      });
+    });
+
+    it('结算单详情按门店数据范围过滤', async () => {
+      prisma.settlement.findFirst.mockResolvedValue({ id: 's-1', tenantId: 'tenant-1', payments: [] });
+
+      await service.findOne('s-1', mockUser);
+
+      expect(prisma.settlement.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ id: 's-1', tenantId: 'tenant-1', shopId: 'shop-1' }),
+      }));
+    });
+
+    it('收款记录通过结算单门店范围过滤', async () => {
+      prisma.payment.findMany.mockResolvedValue([]);
+      prisma.payment.count.mockResolvedValue(0);
+
+      const result = await service.getPayments(mockUser, { page: 1, pageSize: 10 });
+
+      expect(result.total).toBe(0);
+      expect(prisma.payment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          settlement: { is: expect.objectContaining({ tenantId: 'tenant-1', shopId: 'shop-1' }) },
+        }),
+      }));
+      expect(prisma.payment.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          settlement: { is: expect.objectContaining({ tenantId: 'tenant-1', shopId: 'shop-1' }) },
+        }),
+      });
+    });
+
+    it('退款前按门店范围校验结算单归属', async () => {
+      prisma.settlement.findFirst.mockResolvedValue({ id: 's-1', tenantId: 'tenant-1', shopId: 'shop-1' });
+      prisma.payment.findFirst.mockResolvedValue({ id: 'p-1', settlementId: 's-1', tenantId: 'tenant-1' });
+      paymentGatewayService.refund.mockResolvedValue({ status: 'success' });
+
+      await service.refundPayment('s-1', 'p-1', { amount: 100, reason: '测试退款' }, mockUser);
+
+      expect(prisma.settlement.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ id: 's-1', tenantId: 'tenant-1', shopId: 'shop-1' }),
+      }));
+      expect(paymentGatewayService.refund).toHaveBeenCalledWith('p-1', 100, '测试退款', 'user-1', 'tenant-1');
     });
   });
 });
