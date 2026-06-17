@@ -27,6 +27,7 @@
 | TASK-H-017 | 灰度 smoke 脚本可编译检查与链路入口补强 | P0 | ✅ 已关闭 | 修复 smoke 编译阻断，新增 smoke:gray:check 并纳入 check:gray-ready |
 | TASK-H-018 | 老板首页指标数据范围收口 | P0 | ✅ 已关闭 | 补齐 dashboard 概览、最近工单和今日预约的数据范围过滤 |
 | TASK-H-019 | 欠款与收款记录数据范围收口 | P0 | ✅ 已关闭 | 补齐结算详情、收款记录、支付状态和退款入口的数据范围过滤 |
+| TASK-H-020 | API build 阻塞审计 | P0 | ✅ 已关闭 | 审计 pnpm build:api 的 129 个历史 TS 严格模式错误并拆分后续修复任务 |
 
 ## MiMo 派发约定
 
