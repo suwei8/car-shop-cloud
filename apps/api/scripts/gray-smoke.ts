@@ -77,6 +77,11 @@ async function main() {
   log(`  Work order flow: ${SIMPLE_MODE ? 'SIMPLE' : 'STANDARD'}`);
   log('═══════════════════════════════════════════════\n');
 
+  if (process.env.SMOKE_COMPILE_ONLY === '1') {
+    log('SMOKE_COMPILE_ONLY=1 — script loaded successfully; skipping API calls.');
+    process.exit(0);
+  }
+
   if (!API_BASE_URL) {
     log('ERROR: API_BASE_URL is not set.');
     log('Usage: API_BASE_URL=http://127.0.0.1:3000/api pnpm --filter @car/api smoke:gray');
