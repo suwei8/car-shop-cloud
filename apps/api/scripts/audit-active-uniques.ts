@@ -59,6 +59,18 @@ function resolveOutputPath(outputPath: string): string {
   return path.resolve(findRepoRoot(__dirname), outputPath);
 }
 
+interface ActiveCustomerRecord {
+  id: string;
+  phone: string;
+  tenantId: string;
+}
+
+interface ActiveVehicleRecord {
+  id: string;
+  plateNo: string;
+  tenantId: string;
+}
+
 interface ConflictRecord {
   id: string;
   value: string;
@@ -126,11 +138,19 @@ async function main() {
     }
 
     const customerGroups = buildGroups(
-      customers.map((c) => ({ id: c.id, value: c.phone, tenantId: c.tenantId })),
+      (customers as ActiveCustomerRecord[]).map((c) => ({
+        id: c.id,
+        value: c.phone,
+        tenantId: c.tenantId,
+      })),
     );
 
     const vehicleGroups = buildGroups(
-      vehicles.map((v) => ({ id: v.id, value: v.plateNo.toUpperCase(), tenantId: v.tenantId })),
+      (vehicles as ActiveVehicleRecord[]).map((v) => ({
+        id: v.id,
+        value: v.plateNo.toUpperCase(),
+        tenantId: v.tenantId,
+      })),
     );
 
     const report: AuditReport = {
