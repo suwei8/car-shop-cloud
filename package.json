@@ -18,7 +18,9 @@
     "smoke:gray": "pnpm --filter @car/api run smoke:gray",
     "seed:gray": "pnpm --filter @car/api run seed:gray",
     "audit:login-phones": "pnpm --filter @car/api run audit:login-phones",
-    "audit:active-uniques": "pnpm --filter @car/api run audit:active-uniques"
+    "audit:active-uniques": "pnpm --filter @car/api run audit:active-uniques",
+    "check:gray-ready": "bash scripts/check-gray-ready.sh",
+    "smoke:gray:check": "SMOKE_COMPILE_ONLY=1 pnpm --filter @car/api run smoke:gray"
   },
   "engines": {
     "node": ">=18.0.0",

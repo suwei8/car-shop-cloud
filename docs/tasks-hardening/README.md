@@ -21,6 +21,10 @@
 | TASK-H-011 | 登录手机号唯一约束错误统一映射 | P0 | ✅ 已关闭 | 把数据库手机号唯一冲突统一映射为明确业务提示 |
 | TASK-H-012 | 唯一约束业务文案集中映射 | P1 | ✅ 已关闭 | 扩展 filter，对配件编码和卡号等唯一约束返回明确业务提示 |
 | TASK-H-013 | 客户手机号与车牌号唯一规则对齐 | P1 | ✅ 已关闭 | 先补齐 update 路径和只读审计，再决定是否上数据库 partial unique |
+| TASK-H-014 | 客户手机号与车牌号数据库兜底约束 | P0 | ✅ 已关闭 | 增加 PostgreSQL partial unique index，兜底同租户 active 手机号和车牌号唯一 |
+| TASK-H-015 | 灰度环境一键复验与迁移前置检查 | P0 | ✅ 已关闭 | 新增 check:gray-ready，将 schema/build/audit/test/diff 灰度前检查固化为一键入口 |
+| TASK-H-016 | 小程序主路径 API 对齐审计与一键完工修正 | P0 | ✅ 已关闭 | 审计小程序核心闭环 API，修正一键完工调用不存在接口的问题 |
+| TASK-H-017 | 灰度 smoke 脚本可编译检查与链路入口补强 | P0 | ✅ 已关闭 | 修复 smoke 编译阻断，新增 smoke:gray:check 并纳入 check:gray-ready |
 
 ## MiMo 派发约定
 

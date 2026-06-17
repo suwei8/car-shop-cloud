@@ -20,7 +20,8 @@
     "smoke:gray": "ts-node scripts/gray-smoke.ts",
     "seed:gray": "ts-node scripts/gray-seed.ts",
     "audit:login-phones": "ts-node scripts/audit-login-phones.ts",
-    "audit:active-uniques": "ts-node scripts/audit-active-uniques.ts"
+    "audit:active-uniques": "ts-node scripts/audit-active-uniques.ts",
+    "smoke:gray:check": "SMOKE_COMPILE_ONLY=1 ts-node scripts/gray-smoke.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1057.0",
