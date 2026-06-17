@@ -67,6 +67,8 @@ run_required "Prisma schema validation" \
 run_required "API build" \
   pnpm build:api
 
+run_required "Gray smoke script compile check" \
+  pnpm smoke:gray:check
 run_db_required "Login phone uniqueness audit" \
   pnpm audit:login-phones -- --strict
 
