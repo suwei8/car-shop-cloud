@@ -129,11 +129,11 @@ export class PackageCardService {
     }
 
     // 查找套餐项
-    const item = card.items.find(i => i.serviceItemId === data.serviceItemId);
+    const item = card.items.find((i: any) => i.serviceItemId === data.serviceItemId);
     if (!item) throw new NotFoundException('套餐中不包含此服务项目');
     if (Number(item.remainQty) < data.quantity) throw new ForbiddenException('剩余次数不足');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: any) => {
       const updatedItem = await tx.packageCardItem.update({
         where: { id: item.id },
         data: { remainQty: { decrement: data.quantity } },
@@ -191,7 +191,7 @@ export class PackageCardService {
       }
     }
 
-    const item = card.items.find(i => i.id === itemId);
+    const item = card.items.find((i: any) => i.id === itemId);
     if (!item) throw new NotFoundException('套餐卡项目不存在');
     if (Number(item.remainQty) < quantity) throw new ForbiddenException('套餐卡剩余次数不足');
 

@@ -47,7 +47,7 @@ export class MarketingService {
           id: { _count: { gte: query.minOrderCount } },
         },
       });
-      customerIdFilter = customers.map(c => c.customerId);
+      customerIdFilter = customers.map((c: any) => c.customerId);
     }
 
     // 按未到店时长筛选
@@ -64,7 +64,7 @@ export class MarketingService {
         distinct: ['customerId'],
       });
 
-      const activeIds = new Set(activeCustomers.map(c => c.customerId));
+      const activeIds = new Set(activeCustomers.map((c: any) => c.customerId));
       if (customerIdFilter) {
         customerIdFilter = customerIdFilter.filter(id => !activeIds.has(id));
       } else {
@@ -73,7 +73,7 @@ export class MarketingService {
           where: { tenantId },
           select: { id: true },
         });
-        customerIdFilter = allCustomers.filter(c => !activeIds.has(c.id)).map(c => c.id);
+        customerIdFilter = allCustomers.filter((c: any) => !activeIds.has(c.id)).map((c: any) => c.id);
       }
     }
 
@@ -125,7 +125,7 @@ export class MarketingService {
         select: { customerId: true },
         distinct: ['customerId'],
       });
-      targetCustomerIds = [...new Set(customers.map(c => c.customerId))];
+      targetCustomerIds = [...new Set<string>(customers.map((c: any) => c.customerId))];
     }
 
     if (targetCustomerIds.length === 0) {
@@ -144,7 +144,7 @@ export class MarketingService {
     });
 
     // 批量创建通知记录
-    const notifications = customers.map(c => ({
+    const notifications = customers.map((c: any) => ({
       tenantId,
       channel: 'sms' as const,
       scene: 'marketing',
@@ -260,7 +260,7 @@ export class MarketingService {
       select: { customerId: true },
     });
 
-    const existingIds = new Set(existingClaims.map(c => c.customerId));
+    const existingIds = new Set(existingClaims.map((c: any) => c.customerId));
     const newCustomerIds = data.customerIds.filter(id => !existingIds.has(id));
 
     if (newCustomerIds.length === 0) {
