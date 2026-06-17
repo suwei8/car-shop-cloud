@@ -2,7 +2,7 @@
 
 > 生成时间：2026-06-17
 > 适用对象：接手当前工作区的下一位 Agent
-> 工作区状态：**dirty worktree**，禁止回退未识别为自己创建的改动
+> 工作区状态：**clean after snapshot commit**，如继续开发后再次变脏，仍禁止回退未识别为自己创建的改动
 
 ## 1. 项目定位
 
@@ -154,7 +154,7 @@ mimo run --dir /home/sw/dev_root/car --dangerously-skip-permissions "请执行 d
 
 ## 7. 当前工作区注意事项
 
-- 当前工作区有大量未提交改动，不全是本轮硬化任务产生
+- 当前快照提交后工作区是干净的
 - 不要执行：
   - `git reset --hard`
   - `git checkout --`
