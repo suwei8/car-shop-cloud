@@ -25,6 +25,7 @@
 | TASK-H-015 | 灰度环境一键复验与迁移前置检查 | P0 | ✅ 已关闭 | 新增 check:gray-ready，将 schema/build/audit/test/diff 灰度前检查固化为一键入口 |
 | TASK-H-016 | 小程序主路径 API 对齐审计与一键完工修正 | P0 | ✅ 已关闭 | 审计小程序核心闭环 API，修正一键完工调用不存在接口的问题 |
 | TASK-H-017 | 灰度 smoke 脚本可编译检查与链路入口补强 | P0 | ✅ 已关闭 | 修复 smoke 编译阻断，新增 smoke:gray:check 并纳入 check:gray-ready |
+| TASK-H-018 | 老板首页指标数据范围收口 | P0 | ✅ 已关闭 | 补齐 dashboard 概览、最近工单和今日预约的数据范围过滤 |
 
 ## MiMo 派发约定
 
