@@ -80,6 +80,40 @@ describe('DashboardService', () => {
       expect(result.inProgressOrders).toBe(2);
       expect(result.totalDebt).toBe(500);
       expect(result.debtCount).toBe(3);
+      expect(prisma.workOrder.count).toHaveBeenNthCalledWith(1, {
+        where: expect.objectContaining({ tenantId: 'tenant-1', shopId: 'shop-1' }),
+      });
+      expect(prisma.workOrder.count).toHaveBeenNthCalledWith(2, {
+        where: expect.objectContaining({ tenantId: 'tenant-1', shopId: 'shop-1', status: 'in_progress' }),
+      });
+      expect(prisma.payment.aggregate).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          settlement: { is: expect.objectContaining({ tenantId: 'tenant-1', shopId: 'shop-1' }) },
+        }),
+      }));
+      expect(prisma.stockBalance.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: 'tenant-1',
+          warehouse: { shopId: 'shop-1' },
+        }),
+      }));
+    });
+
+    it('最近工单和今日预约按门店数据范围过滤', async () => {
+      prisma.workOrder.findMany.mockResolvedValue([]);
+      prisma.appointment.findMany.mockResolvedValue([]);
+
+      await service.getRecentOrders(mockUser, 5);
+      await service.getTodayAppointments(mockUser);
+
+      expect(prisma.workOrder.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { tenantId: 'tenant-1', shopId: 'shop-1' },
+        take: 5,
+      }));
+      expect(prisma.appointment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ tenantId: 'tenant-1', shopId: 'shop-1' }),
+      }));
     });
 
     it('欠款为 0 时返回正确默认值', async () => {

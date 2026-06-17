@@ -184,8 +184,9 @@ async function quickComplete(order: any) {
       const token = uni.getStorageSync('accessToken');
       try {
         const woRes: any = await request({
-          url: `/api/work-orders/${order.id}/complete`,
+          url: `/api/work-orders/${order.id}/status`,
           method: 'PUT',
+          data: { status: 'completed' },
           header: { Authorization: `Bearer ${token}` },
         });
         if (woRes.data?.code === 0) {
