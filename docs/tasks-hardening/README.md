@@ -22,6 +22,7 @@
 | TASK-H-012 | 唯一约束业务文案集中映射 | P1 | ✅ 已关闭 | 扩展 filter，对配件编码和卡号等唯一约束返回明确业务提示 |
 | TASK-H-013 | 客户手机号与车牌号唯一规则对齐 | P1 | ✅ 已关闭 | 先补齐 update 路径和只读审计，再决定是否上数据库 partial unique |
 | TASK-H-014 | 客户手机号与车牌号数据库兜底约束 | P0 | ✅ 已关闭 | 增加 PostgreSQL partial unique index，兜底同租户 active 手机号和车牌号唯一 |
+| TASK-H-015 | 灰度环境一键复验与迁移前置检查 | P0 | ✅ 已关闭 | 新增 check:gray-ready，将 schema/build/audit/test/diff 灰度前检查固化为一键入口 |
 
 ## MiMo 派发约定
 
