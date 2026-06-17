@@ -69,7 +69,6 @@ run_required "API build" \
 
 run_required "Gray smoke script compile check" \
   pnpm smoke:gray:check
-
 run_db_required "Login phone uniqueness audit" \
   pnpm audit:login-phones -- --strict
 
