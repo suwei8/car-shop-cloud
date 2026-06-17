@@ -195,6 +195,7 @@ export class SubscriptionService {
     const result = await this.paymentGatewayService.createPaymentOrder(
       payment.id,
       dto.paymentMethod as 'wechat' | 'alipay',
+      user.tenantId!,
       {
         tradeType: dto.openid ? 'JSAPI' : 'NATIVE',
         openid: dto.openid,

@@ -3,6 +3,20 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
 const ExcelJS = require('exceljs');
 
+const AMOUNT_RE = /^(0|[1-9]\d*)(\.\d{1,2})?$/;
+
+function amountToCents(str: string): number {
+  const match = AMOUNT_RE.exec(str);
+  if (!match) return NaN;
+  const [integerPart, decimalPart = ''] = str.split('.');
+  const centsPart = decimalPart.padEnd(2, '0');
+  return Number(integerPart) * 100 + Number(centsPart);
+}
+
+function centsToAmount(cents: number): number {
+  return cents / 100;
+}
+
 export interface PreviewResult {
   customers: { valid: PreviewRow[]; errors: PreviewRow[] };
   vehicles: { valid: PreviewRow[]; errors: PreviewRow[] };
@@ -272,17 +286,18 @@ export class DataImportService {
         rowErrors.push('客户手机号必须为11位数字');
       }
 
-      const balanceNum = parseFloat(data.balance);
-      if (isNaN(balanceNum) || balanceNum < 0) {
-        rowErrors.push('当前余额必须为非负数字');
+      if (!AMOUNT_RE.test(data.balance)) {
+        rowErrors.push('当前余额格式不正确，支持格式：0、0.00、123、123.45');
       }
 
-      const giftNum = parseFloat(data.giftAmount || '0');
-      if (isNaN(giftNum) || giftNum < 0) {
-        rowErrors.push('赠送金额必须为非负数字');
+      if (!AMOUNT_RE.test(data.giftAmount || '0')) {
+        rowErrors.push('赠送金额格式不正确，支持格式：0、0.00、123、123.45');
       }
 
-      if (!isNaN(balanceNum) && !isNaN(giftNum) && giftNum > balanceNum) {
+      const balanceCents = amountToCents(data.balance);
+      const giftCents = amountToCents(data.giftAmount || '0');
+
+      if (!isNaN(balanceCents) && !isNaN(giftCents) && giftCents > balanceCents) {
         rowErrors.push('赠送金额不能超过当前余额');
       }
 
@@ -390,9 +405,11 @@ export class DataImportService {
           continue;
         }
 
-        const balance = parseFloat(row.data.balance);
-        const giftAmount = parseFloat(row.data.giftAmount || '0');
-        const principal = balance - giftAmount;
+        const balanceCents = amountToCents(row.data.balance);
+        const giftCents = amountToCents(row.data.giftAmount || '0');
+        const balance = centsToAmount(balanceCents);
+        const giftAmount = centsToAmount(giftCents);
+        const principal = centsToAmount(balanceCents - giftCents);
 
         const cardNo = row.data.cardNo || `SVC${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
 

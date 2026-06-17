@@ -48,8 +48,8 @@ export class CreateWorkOrderItemDto {
 }
 
 export class UpdateWorkOrderStatusDto {
-  @ApiProperty({ enum: ['draft', 'confirmed', 'dispatching', 'in_progress', 'completed', 'cancelled'] })
-  @IsIn(['draft', 'confirmed', 'dispatching', 'in_progress', 'completed', 'cancelled'])
+  @ApiProperty({ enum: ['draft', 'confirmed', 'dispatching', 'in_progress', 'completed', 'cancelled', 'quoted', 'settled'] })
+  @IsIn(['draft', 'confirmed', 'dispatching', 'in_progress', 'completed', 'cancelled', 'quoted', 'settled'])
   status: string;
 }
 
@@ -68,7 +68,7 @@ export class CreateWorkOrderDto {
   shopId: string;
 
   @ApiProperty()
-  @IsEnum(['repair', 'wash', 'quick'])
+  @IsEnum(['repair', 'maintenance', 'sheet_metal', 'painting', 'wash', 'rescue', 'quick'])
   orderType: string;
 
   @ApiProperty()
@@ -79,9 +79,10 @@ export class CreateWorkOrderDto {
   @IsString()
   vehicleId: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  vehiclePlateNo: string;
+  vehiclePlateNo?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

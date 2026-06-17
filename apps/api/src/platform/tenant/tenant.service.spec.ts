@@ -1,4 +1,4 @@
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PlatformTenantService } from './tenant.service';
 
 const now = new Date();
@@ -320,6 +320,101 @@ describe('PlatformTenantService', () => {
 
       await expect(service.impersonate('tenant-1', 'op-1'))
         .rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('create', () => {
+    it('should throw ConflictException when contactPhone already exists globally', async () => {
+      const service = createService();
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 'existing-user', phone: '13800000000' });
+
+      await expect(
+        service.create({ name: '新商户', contactPhone: '13800000000', password: 'Test123456' }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should allow create when contactPhone is globally unique', async () => {
+      const service = createService();
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = {
+          tenant: { create: jest.fn().mockResolvedValue({ id: 'new-tenant', name: '新商户', subscriptionEndAt: new Date() }) },
+          tenantSubscription: { create: jest.fn() },
+          subscriptionPlan: { findUnique: jest.fn().mockResolvedValue({ id: 'plan-trial' }) },
+        };
+        return fn(tx);
+      });
+
+      const result = await service.create({ name: '新商户', contactPhone: '13900000000', password: 'Test123456' });
+
+      expect(result).toHaveProperty('adminPassword');
+    });
+  });
+
+  describe('update', () => {
+    it('should throw ConflictException when new contactPhone exists globally', async () => {
+      const service = createService();
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        id: 'tenant-1',
+        contactPhone: '13800000000',
+        status: 'active',
+        subscriptionStatus: 'active',
+        subscriptions: [],
+      });
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 'other-user', phone: '13900000000' });
+
+      await expect(
+        service.update('tenant-1', { contactPhone: '13900000000' }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should throw ConflictException even when occupied user id equals tenant id', async () => {
+      const service = createService();
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        id: 'tenant-1',
+        contactPhone: '13800000000',
+        status: 'active',
+        subscriptionStatus: 'active',
+        subscriptions: [],
+      });
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 'tenant-1', phone: '13900000000' });
+
+      await expect(
+        service.update('tenant-1', { contactPhone: '13900000000' }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should allow update when contactPhone is globally unique', async () => {
+      const service = createService();
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        id: 'tenant-1',
+        contactPhone: '13800000000',
+        status: 'active',
+        subscriptionStatus: 'active',
+        subscriptions: [],
+      });
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+      mockPrisma.tenant.update.mockResolvedValue({ id: 'tenant-1', contactPhone: '13900000000' });
+
+      const result = await service.update('tenant-1', { contactPhone: '13900000000' });
+
+      expect(result.contactPhone).toBe('13900000000');
+    });
+
+    it('should not check phone when contactPhone is unchanged', async () => {
+      const service = createService();
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        id: 'tenant-1',
+        contactPhone: '13800000000',
+        status: 'active',
+        subscriptionStatus: 'active',
+        subscriptions: [],
+      });
+      mockPrisma.tenant.update.mockResolvedValue({ id: 'tenant-1', name: '新名称' });
+
+      await service.update('tenant-1', { name: '新名称' });
+
+      expect(mockPrisma.user.findFirst).not.toHaveBeenCalled();
     });
   });
 });

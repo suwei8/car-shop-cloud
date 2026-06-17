@@ -37,9 +37,12 @@ export class PaymentGatewayService {
   async createPaymentOrder(
     paymentId: string,
     method: 'wechat' | 'alipay',
+    tenantId: string,
     options?: { tradeType?: 'NATIVE' | 'JSAPI'; openid?: string },
   ): Promise<{ codeUrl?: string; prepayId?: string; jsapiParams?: any }> {
-    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, tenantId },
+    });
     if (!payment) throw new NotFoundException('支付记录不存在');
     if (payment.status !== 'pending' && payment.status !== 'paid') {
       throw new BadRequestException(`支付状态异常: ${payment.status}`);
@@ -191,8 +194,10 @@ export class PaymentGatewayService {
     this.logger.log(`handleCallback: paid ${payment.id} txId=${result.transactionId}`);
   }
 
-  async queryPaymentStatus(paymentId: string): Promise<{ status: string; transactionId?: string }> {
-    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
+  async queryPaymentStatus(paymentId: string, tenantId: string): Promise<{ status: string; transactionId?: string }> {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, tenantId },
+    });
     if (!payment) throw new NotFoundException('支付记录不存在');
 
     if (payment.status === 'pending' && payment.expiredAt && new Date() > payment.expiredAt) {
@@ -248,8 +253,10 @@ export class PaymentGatewayService {
     return { status: payment.status, transactionId: payment.transactionId || undefined };
   }
 
-  async refund(paymentId: string, amount: number, reason: string, operatorId: string) {
-    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
+  async refund(paymentId: string, amount: number, reason: string, operatorId: string, tenantId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, tenantId },
+    });
     if (!payment) throw new NotFoundException('支付记录不存在');
 
     if (!['paid', 'partially_refunded'].includes(payment.status)) {

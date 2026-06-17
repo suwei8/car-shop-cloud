@@ -279,6 +279,10 @@ const subscription = ref<any>(null);
 const showAboutModal = ref(false);
 const simpleMode = ref(false);
 
+function isMockPaymentEnabled(): boolean {
+  return process.env.NODE_ENV !== 'production';
+}
+
 // 续费与套餐 state
 const showRenewModal = ref(false);
 const plans = ref<any[]>([]);
@@ -411,9 +415,8 @@ async function submitRenew() {
               await fetchSubscription();
             },
             fail: async (err) => {
-              console.warn('微信支付失败或取消，准备进入模拟支付', err);
-              // For sandbox/mock test ease, simulate successful mock payment callback
-              if (payData.jsapiParams.appId === 'mock_appid') {
+              console.warn('微信支付失败或取消', err);
+              if (isMockPaymentEnabled() && payData.jsapiParams.appId === 'mock_appid') {
                 uni.showLoading({ title: '模拟支付回调中...' });
                 try {
                   const amtCents = Math.round(Number(order.amount) * 100);
@@ -556,7 +559,8 @@ function handleLogout() {
     content: '确定要退出当前账号吗？',
     success: (res) => {
       if (res.confirm) {
-        auth.logout();
+        const authStore = useAuthStore();
+        authStore.logout();
       }
     }
   });

@@ -26,9 +26,8 @@ export default defineConfig({
     allowedHosts: ['car.13982.com', 'car-api.13982.com'],
     proxy: {
       '/api': {
-        target: 'https://car-api.13982.com',
+        target: 'http://127.0.0.1:3000',
         changeOrigin: true,
-        secure: true,
       },
     },
   },

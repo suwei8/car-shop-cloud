@@ -19,11 +19,21 @@ interface SubscriptionInfo {
   daysRemaining: number;
 }
 
+function safeParseJson<T>(value: any, fallback: T): T {
+  if (!value) return fallback;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string>(uni.getStorageSync('accessToken') || '');
   const refreshTokenValue = ref<string>(uni.getStorageSync('refreshToken') || '');
   const user = ref<UserInfo | null>(
-    uni.getStorageSync('userInfo') ? JSON.parse(uni.getStorageSync('userInfo')) : null,
+    safeParseJson<UserInfo | null>(uni.getStorageSync('userInfo'), null),
   );
   const subscription = ref<SubscriptionInfo | null>(null);
 

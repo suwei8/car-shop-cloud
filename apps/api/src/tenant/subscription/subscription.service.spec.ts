@@ -227,6 +227,7 @@ describe('SubscriptionService', () => {
       expect(mockPaymentGatewayService.createPaymentOrder).toHaveBeenCalledWith(
         'pay-1',
         'wechat',
+        't1',
         { tradeType: 'NATIVE', openid: undefined },
       );
     });

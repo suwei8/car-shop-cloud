@@ -89,8 +89,8 @@ describe('WorkOrderService', () => {
           customerId: 'cust-1',
           vehicleId: 'v-1',
           items: [
-            { itemType: 'service', name: '机油更换', quantity: 1, unitPrice: 200 },
-            { itemType: 'part', name: '机油滤芯', serviceItemId: 'p-1', quantity: 2, unitPrice: 50 },
+            { itemType: 'service', name: '机油更换', serviceItemId: 'svc-1', quantity: 1, unitPrice: 200 },
+            { itemType: 'part', name: '机油滤芯', partId: 'p-1', quantity: 2, unitPrice: 50 },
           ],
         },
         mockUser,
@@ -98,6 +98,26 @@ describe('WorkOrderService', () => {
 
       expect(result.totalAmount).toBe(300);
       expect(result.orderNo).toMatch(/^WO\d{8}\d{4}$/);
+      expect(prisma.workOrder.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            items: {
+              create: expect.arrayContaining([
+                expect.objectContaining({
+                  itemType: 'service',
+                  serviceItem: { connect: { id: 'svc-1' } },
+                  part: undefined,
+                }),
+                expect.objectContaining({
+                  itemType: 'part',
+                  part: { connect: { id: 'p-1' } },
+                  serviceItem: undefined,
+                }),
+              ]),
+            },
+          }),
+        }),
+      );
     });
 
     it('车辆不存在：抛出 NotFoundException', async () => {
@@ -124,6 +144,31 @@ describe('WorkOrderService', () => {
 
       expect(result.totalAmount).toBe(0);
     });
+
+    it('运行时传入 tenantId 也只使用 JWT 中的租户', async () => {
+      prisma.vehicle.findFirst.mockResolvedValue({ id: 'v-1', plateNo: '京A12345' });
+      prisma.sequence.upsert.mockResolvedValue({ value: 3 });
+      prisma.workOrder.create.mockResolvedValue({
+        id: 'wo-3', totalAmount: 0, payableAmount: 0,
+      });
+
+      await service.create(
+        {
+          tenantId: 'tenant-evil',
+          shopId: 'shop-1',
+          orderType: 'quick',
+          customerId: 'cust-1',
+          vehicleId: 'v-1',
+        } as any,
+        mockUser,
+      );
+
+      expect(prisma.workOrder.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ tenantId: 'tenant-1' }),
+        }),
+      );
+    });
   });
 
   describe('addItems（添加项目）', () => {
@@ -144,6 +189,28 @@ describe('WorkOrderService', () => {
           data: expect.objectContaining({ totalAmount: { increment: 300 } }),
         }),
       );
+    });
+
+    it('配件项目使用 partId 字段', async () => {
+      prisma.workOrder.findFirst
+        .mockResolvedValueOnce({ id: 'wo-1', tenantId: 'tenant-1', totalAmount: 200, payableAmount: 200 })
+        .mockResolvedValueOnce({ id: 'wo-1', totalAmount: 250, payableAmount: 250 });
+
+      await service.addItems(
+        'wo-1',
+        [{ itemType: 'part', partId: 'part-1', name: '机油滤芯', quantity: 1, unitPrice: 50 }],
+        mockUser,
+      );
+
+      expect(prisma.workOrderItem.createMany).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({
+            itemType: 'part',
+            partId: 'part-1',
+            serviceItemId: null,
+          }),
+        ],
+      });
     });
   });
 

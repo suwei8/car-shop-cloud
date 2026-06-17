@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -90,7 +90,7 @@ export class WechatLoginService {
     await this.smsCodeService.verifyCode(phone, smsCode);
 
     // 3. 查找该手机号是否已有用户
-    const existingUser = await this.prisma.user.findFirst({
+    const existingUsers = await this.prisma.user.findMany({
       where: { phone },
       include: {
         userRoles: {
@@ -108,7 +108,12 @@ export class WechatLoginService {
       },
     });
 
-    if (existingUser) {
+    if (existingUsers.length > 1) {
+      throw new ConflictException('该手机号关联多个账号，请联系管理员处理');
+    }
+
+    if (existingUsers.length === 1) {
+      const existingUser = existingUsers[0];
       // 已有用户 → 绑定 openid
       await this.prisma.user.update({
         where: { id: existingUser.id },

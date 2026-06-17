@@ -4,6 +4,7 @@ import { JwtPayload } from '@car/shared';
 import { validateTransition } from './work-order.state-machine';
 import { StockService } from '../stock/stock.service';
 import { applyDataScope } from '../../common/utils/scope-where';
+import { tenantWhere, tenantCreate } from '../../common/utils/tenant-where';
 import { NotificationService } from '../../notification/notification.service';
 import { FeatureFlagService } from '../../platform/feature-flag/feature-flag.service';
 
@@ -20,14 +21,14 @@ export class WorkOrderService {
     const { page: _p = 1, pageSize: _ps = 20, status, shopId, orderType, customerId, vehicleId } = query;
     const page = Number(_p) || 1;
     const pageSize = Number(_ps) || 20;
-    const where: any = { tenantId: user.tenantId! };
+    const baseWhere: any = {};
+    if (status) baseWhere.status = status;
+    if (shopId) baseWhere.shopId = shopId;
+    if (orderType) baseWhere.orderType = orderType;
+    if (customerId) baseWhere.customerId = customerId;
+    if (vehicleId) baseWhere.vehicleId = vehicleId;
 
-    if (status) where.status = status;
-    if (shopId) where.shopId = shopId;
-    if (orderType) where.orderType = orderType;
-    if (customerId) where.customerId = customerId;
-    if (vehicleId) where.vehicleId = vehicleId;
-
+    const where = tenantWhere(user, baseWhere);
     const scopedWhere = applyDataScope(user, where, 'shopId', 'advisorId');
 
     const [items, total] = await Promise.all([
@@ -67,7 +68,10 @@ export class WorkOrderService {
     shopId: string; orderType: string; customerId: string; vehicleId: string;
     advisorId?: string; description?: string; remark?: string;
     expectDate?: string | Date;
-    items?: { serviceItemId?: string; itemType: string; name: string; quantity: number; unit?: string; unitPrice: number; technicianId?: string }[];
+    items?: {
+      serviceItemId?: string; partId?: string; itemType: string; name: string;
+      quantity: number; unit?: string; unitPrice: number; technicianId?: string;
+    }[];
   }, user: JwtPayload) {
     const vehicle = await this.prisma.vehicle.findFirst({
       where: { id: data.vehicleId, tenantId: user.tenantId! },
@@ -76,11 +80,12 @@ export class WorkOrderService {
 
     const items = (data.items || []).map(item => {
       const isPart = item.itemType === 'part';
-      const { serviceItemId: _, ...rest } = item;
+      const { serviceItemId, partId, ...rest } = item;
+      const resolvedPartId = partId || (isPart ? serviceItemId : undefined);
       return {
         ...rest,
-        part: isPart && item.serviceItemId ? { connect: { id: item.serviceItemId } } : undefined,
-        serviceItem: !isPart && item.serviceItemId ? { connect: { id: item.serviceItemId } } : undefined,
+        part: isPart && resolvedPartId ? { connect: { id: resolvedPartId } } : undefined,
+        serviceItem: !isPart && serviceItemId ? { connect: { id: serviceItemId } } : undefined,
         tenant: { connect: { id: user.tenantId! } },
         amount: item.quantity * item.unitPrice,
       };
@@ -92,8 +97,7 @@ export class WorkOrderService {
       const orderNo = await this.generateOrderNo(user.tenantId!, tx);
 
       return tx.workOrder.create({
-        data: {
-          tenantId: user.tenantId!,
+        data: tenantCreate(user, {
           shopId: data.shopId,
           orderNo,
           orderType: data.orderType,
@@ -107,7 +111,7 @@ export class WorkOrderService {
           totalAmount,
           payableAmount: totalAmount,
           items: { create: items },
-        },
+        }),
         include: {
           customer: true,
           vehicle: true,
@@ -255,16 +259,17 @@ export class WorkOrderService {
   }
 
   async addItems(orderId: string, items: {
-    serviceItemId?: string; itemType: string; name: string;
+    serviceItemId?: string; partId?: string; itemType: string; name: string;
     quantity: number; unit?: string; unitPrice: number; technicianId?: string;
   }[], user: JwtPayload) {
     const order = await this.findOne(orderId, user);
 
     const newItems = items.map(item => {
       const isPart = item.itemType === 'part';
+      const resolvedPartId = item.partId || (isPart ? item.serviceItemId : undefined);
       return {
         ...item,
-        partId: isPart ? item.serviceItemId : null,
+        partId: isPart ? resolvedPartId : null,
         serviceItemId: isPart ? null : (item.serviceItemId || null),
         tenantId: user.tenantId!,
         workOrderId: orderId,

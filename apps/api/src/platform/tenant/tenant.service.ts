@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { TenantInitializerService } from './tenant-initializer.service';
@@ -50,6 +50,16 @@ export class PlatformTenantService {
 
   async create(data: { name: string; contactName?: string; contactPhone?: string; password: string }) {
     const { password, ...tenantData } = data;
+
+    if (data.contactPhone) {
+      const existingUser = await this.prisma.user.findFirst({
+        where: { phone: data.contactPhone },
+      });
+      if (existingUser) {
+        throw new ConflictException('该手机号已被其他账号使用');
+      }
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const trialDays = parseInt(this.config.get('TRIAL_DAYS', '14'));
 
@@ -101,9 +111,18 @@ export class PlatformTenantService {
 
   async update(id: string, data: { name?: string; contactName?: string; contactPhone?: string; password?: string; status?: string }) {
     const { password, ...tenantData } = data;
-    await this.findOne(id);
+    const tenant = await this.findOne(id);
 
-    const tenant = await this.prisma.tenant.update({ where: { id }, data: tenantData });
+    if (data.contactPhone && data.contactPhone !== tenant.contactPhone) {
+      const existingUser = await this.prisma.user.findFirst({
+        where: { phone: data.contactPhone },
+      });
+      if (existingUser) {
+        throw new ConflictException('该手机号已被其他账号使用');
+      }
+    }
+
+    const updated = await this.prisma.tenant.update({ where: { id }, data: tenantData });
 
     if (password) {
       const phone = data.contactPhone || tenant.contactPhone || '';
@@ -119,7 +138,7 @@ export class PlatformTenantService {
       }
     }
 
-    return tenant;
+    return updated;
   }
 
   async remove(id: string) {

@@ -1,9 +1,8 @@
-import { NestFactory, Reflector } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
-import { RolesGuard, PermissionsGuard, TenantGuard } from './common/guards';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { createValidationPipe } from './common/pipes/validation.pipe';
@@ -18,7 +17,6 @@ if (typeof globalThis.crypto === 'undefined') {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
-  const reflector = app.get(Reflector);
 
   // ---------------------------------------------------------------------------
   // CORS — whitelist from CORS_ORIGINS (new) or CORS_ORIGIN (legacy).
@@ -62,12 +60,6 @@ async function bootstrap() {
   });
 
   app.useGlobalPipes(createValidationPipe());
-
-  app.useGlobalGuards(
-    new TenantGuard(reflector),
-    new RolesGuard(reflector),
-    new PermissionsGuard(reflector),
-  );
 
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalFilters(new AllExceptionsFilter());

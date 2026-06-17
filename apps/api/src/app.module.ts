@@ -40,6 +40,8 @@ import { DataImportModule } from './tenant/data-import/data-import.module';
 import { ReminderModule } from './tenant/reminder/reminder.module';
 import { AnalyticsModule } from './tenant/analytics/analytics.module';
 import { MarketingModule } from './tenant/marketing/marketing.module';
+import { OcrModule } from './common/ocr/ocr.module';
+import { VinDecoderModule } from './common/vin/vin-decoder.module';
 
 import { PaymentGatewayModule } from './tenant/payment/payment-gateway.module';
 import { SubscriptionModule } from './tenant/subscription/subscription.module';
@@ -100,6 +102,8 @@ import { RolesGuard, PermissionsGuard, TenantGuard, JwtAuthGuard, SubscriptionGu
     WarrantyModule,
     AnalyticsModule,
     MarketingModule,
+    OcrModule,
+    VinDecoderModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

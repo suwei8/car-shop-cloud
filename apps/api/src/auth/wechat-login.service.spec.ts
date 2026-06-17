@@ -14,6 +14,7 @@ describe('WechatLoginService', () => {
     mockPrisma = {
       user: {
         findFirst: jest.fn(),
+        findMany: jest.fn(),
         update: jest.fn(),
       },
       tenant: {
@@ -123,9 +124,10 @@ describe('WechatLoginService', () => {
   describe('bind', () => {
     it('should bind to existing user by phone', async () => {
       mockSmsCodeService.verifyCode.mockResolvedValue(true);
-      // findFirst: first call finds existing user by phone
-      mockPrisma.user.findFirst.mockResolvedValueOnce(mockUser);
-      mockPrisma.user.findFirst.mockResolvedValueOnce({ subscriptionEndAt: new Date(Date.now() + 30 * 86400000), subscriptionStatus: 'trial' });
+      // findMany: finds exactly 1 user with this phone
+      mockPrisma.user.findMany.mockResolvedValueOnce([mockUser]);
+      // generateLoginResult calls findUnique for tenant
+      mockPrisma.tenant.findUnique.mockResolvedValue({ subscriptionEndAt: new Date(Date.now() + 30 * 86400000), subscriptionStatus: 'trial' });
 
       const result = await service.bind({
         code: 'test_code',
@@ -154,12 +156,10 @@ describe('WechatLoginService', () => {
       };
       mockPrisma.$transaction.mockImplementation(async (fn: any) => fn(txMocks));
 
-      // findFirst call chain:
-      // 1. check existing user by phone → null (no existing user)
-      // 2. find user after transaction (without include)
-      // 3. find user after transaction (with include for token generation)
+      // findMany: no existing user by phone → empty array
+      mockPrisma.user.findMany.mockResolvedValueOnce([]);
+      // findFirst: find user after transaction (without include)
       mockPrisma.user.findFirst
-        .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({
           id: 'new-user',
           phone: '13800000000',
@@ -205,8 +205,8 @@ describe('WechatLoginService', () => {
 
     it('should throw if new user binding without required fields', async () => {
       mockSmsCodeService.verifyCode.mockResolvedValue(true);
-      // findFirst: no existing user by phone
-      mockPrisma.user.findFirst.mockResolvedValueOnce(null);
+      // findMany: no existing user by phone → empty array
+      mockPrisma.user.findMany.mockResolvedValueOnce([]);
 
       await expect(
         service.bind({
@@ -216,6 +216,27 @@ describe('WechatLoginService', () => {
           ip: '127.0.0.1',
         }),
       ).rejects.toThrow('新用户绑定需要提供');
+    });
+
+    it('should throw when phone has multiple users', async () => {
+      mockSmsCodeService.verifyCode.mockResolvedValue(true);
+      // findMany: returns 2 users with same phone
+      mockPrisma.user.findMany.mockResolvedValueOnce([
+        { ...mockUser, id: 'user-1', tenantId: 'tenant-1' },
+        { ...mockUser, id: 'user-2', tenantId: 'tenant-2' },
+      ]);
+
+      await expect(
+        service.bind({
+          code: 'test_code',
+          phone: '13800000000',
+          smsCode: '123456',
+          shopName: '新注册店',
+          businessType: 'repair',
+          employeeCount: 3,
+          ip: '127.0.0.1',
+        }),
+      ).rejects.toThrow('该手机号关联多个账号');
     });
   });
 });

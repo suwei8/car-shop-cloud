@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, ConflictException } 
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { JwtPayload } from '@car/shared';
+import { tenantWhere, tenantCreate } from '../../common/utils/tenant-where';
 
 @Injectable()
 export class PackageCardService {
@@ -11,10 +12,12 @@ export class PackageCardService {
     const { page: _p = 1, pageSize: _ps = 20, customerId, status } = query;
     const page = Number(_p) || 1;
     const pageSize = Number(_ps) || 20;
-    const where: any = { tenantId: user.tenantId! };
+    const baseWhere: any = {};
 
-    if (customerId) where.customerId = customerId;
-    if (status) where.status = status;
+    if (customerId) baseWhere.customerId = customerId;
+    if (status) baseWhere.status = status;
+
+    const where = tenantWhere(user, baseWhere);
 
     const [items, total] = await Promise.all([
       this.prisma.packageCard.findMany({
@@ -54,8 +57,7 @@ export class PackageCardService {
     if (existing) throw new ConflictException('卡号已存在');
 
     return this.prisma.packageCard.create({
-      data: {
-        tenantId: user.tenantId!,
+      data: tenantCreate(user, {
         cardNo: data.cardNo,
         customerId: data.customerId,
         vehicleId: data.vehicleId,
@@ -72,7 +74,7 @@ export class PackageCardService {
             remainQty: item.totalQty,
           })),
         },
-      },
+      }),
       include: { items: true },
     });
   }
@@ -220,8 +222,10 @@ export class PackageCardService {
     const { page: _p = 1, pageSize: _ps = 20, cardId } = query;
     const page = Number(_p) || 1;
     const pageSize = Number(_ps) || 20;
-    const where: any = { tenantId: user.tenantId! };
-    if (cardId) where.cardId = cardId;
+    const baseWhere: any = {};
+    if (cardId) baseWhere.cardId = cardId;
+
+    const where = tenantWhere(user, baseWhere);
 
     const [items, total] = await Promise.all([
       this.prisma.packageCardTransaction.findMany({

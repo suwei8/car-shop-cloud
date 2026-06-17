@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
+import { tenantWhere, tenantCreate } from '../../common/utils/tenant-where';
 
 @Injectable()
 export class CustomerService {
@@ -10,14 +11,16 @@ export class CustomerService {
     const { page: _p = 1, pageSize: _ps = 20, keyword } = query;
     const page = Number(_p) || 1;
     const pageSize = Number(_ps) || 20;
-    const where: any = { tenantId: user.tenantId!, status: 'active' };
+    const baseWhere: any = { status: 'active' };
 
     if (keyword) {
-      where.OR = [
+      baseWhere.OR = [
         { name: { contains: keyword, mode: 'insensitive' } },
         { phone: { contains: keyword } },
       ];
     }
+
+    const where = tenantWhere(user, baseWhere);
 
     const [items, total] = await Promise.all([
       this.prisma.customer.findMany({
@@ -49,12 +52,20 @@ export class CustomerService {
     if (existing) throw new ConflictException('该手机号客户已存在');
 
     return this.prisma.customer.create({
-      data: { ...data, tenantId: user.tenantId! },
+      data: tenantCreate(user, { ...data }),
     });
   }
 
   async update(id: string, data: { name?: string; phone?: string; gender?: string; email?: string; address?: string; remark?: string }, user: JwtPayload) {
-    await this.findOne(id, user);
+    const existing = await this.findOne(id, user);
+
+    if (data.phone && data.phone !== existing.phone) {
+      const conflict = await this.prisma.customer.findFirst({
+        where: { tenantId: user.tenantId!, phone: data.phone, status: 'active', id: { not: id } },
+      });
+      if (conflict) throw new ConflictException('该手机号客户已存在');
+    }
+
     return this.prisma.customer.update({ where: { id, tenantId: user.tenantId! }, data });
   }
 

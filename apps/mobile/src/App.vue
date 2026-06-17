@@ -90,9 +90,11 @@ onLaunch(() => {
     uni.reLaunch({ url: '/pages/login/login' });
   }
 
-  uni.onNetworkStatusChange((res) => {
-    isOffline.value = !res.isConnected;
-  });
+  if (typeof uni.onNetworkStatusChange === 'function') {
+    uni.onNetworkStatusChange((res: any) => {
+      isOffline.value = !res.isConnected;
+    });
+  }
 });
 
 onShow(() => {

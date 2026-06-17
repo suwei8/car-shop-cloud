@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
+import { tenantWhere, tenantCreate } from '../../common/utils/tenant-where';
 
 @Injectable()
 export class StoredValueCardService {
@@ -10,10 +11,12 @@ export class StoredValueCardService {
     const { page: _p = 1, pageSize: _ps = 20, customerId, status } = query;
     const page = Number(_p) || 1;
     const pageSize = Number(_ps) || 20;
-    const where: any = { tenantId: user.tenantId! };
+    const baseWhere: any = {};
 
-    if (customerId) where.customerId = customerId;
-    if (status) where.status = status;
+    if (customerId) baseWhere.customerId = customerId;
+    if (status) baseWhere.status = status;
+
+    const where = tenantWhere(user, baseWhere);
 
     const [items, total] = await Promise.all([
       this.prisma.storedValueCard.findMany({
@@ -49,15 +52,14 @@ export class StoredValueCardService {
 
     return this.prisma.$transaction(async (tx) => {
       const card = await tx.storedValueCard.create({
-        data: {
-          tenantId: user.tenantId!,
+        data: tenantCreate(user, {
           cardNo: data.cardNo,
           customerId: data.customerId,
           balance: totalBalance,
           principalBalance: data.amount,
           giftBalance: gift,
           remark: data.remark,
-        },
+        }),
       });
 
       await tx.storedValueTransaction.create({
@@ -200,8 +202,10 @@ export class StoredValueCardService {
     const { page: _p = 1, pageSize: _ps = 20, cardId } = query;
     const page = Number(_p) || 1;
     const pageSize = Number(_ps) || 20;
-    const where: any = { tenantId: user.tenantId! };
-    if (cardId) where.cardId = cardId;
+    const baseWhere: any = {};
+    if (cardId) baseWhere.cardId = cardId;
+
+    const where = tenantWhere(user, baseWhere);
 
     const [items, total] = await Promise.all([
       this.prisma.storedValueTransaction.findMany({

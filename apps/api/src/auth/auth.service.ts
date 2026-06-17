@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -28,7 +29,7 @@ export class AuthService {
   ) {}
 
   async login(phone: string, password: string) {
-    const user = await this.prisma.user.findFirst({
+    const users = await this.prisma.user.findMany({
       where: { phone, status: 'active' },
       include: {
         userRoles: {
@@ -46,9 +47,15 @@ export class AuthService {
       },
     });
 
-    if (!user) {
+    if (users.length === 0) {
       throw new UnauthorizedException('手机号或密码错误');
     }
+
+    if (users.length > 1) {
+      throw new ConflictException('该手机号关联多个账号，请联系管理员处理');
+    }
+
+    const user = users[0];
 
     const passwordValid = await bcrypt.compare(password, user.passwordHash);
     if (!passwordValid) {

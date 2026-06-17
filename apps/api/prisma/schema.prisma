@@ -199,9 +199,9 @@ model User {
   auditLogs      AuditLog[]
 
   @@unique([tenantId, phone])
+  @@unique([phone], map: "users_phone_key")
   @@unique([wxOpenid], name: "user_wxopenid_key")
   @@index([tenantId])
-  @@index([phone])
   @@map("users")
 }
 

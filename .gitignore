@@ -48,6 +48,7 @@ Thumbs.db
 # AI CLI working dirs
 .qoder/
 .mimocode/
+.agent-bridge/
 
 # 抓包 / 交接打包 / 临时产物
 *.har

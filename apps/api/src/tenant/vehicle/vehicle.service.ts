@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
+import { tenantWhere, tenantCreate } from '../../common/utils/tenant-where';
 import { VEHICLE_BRAND_LIBRARY } from './data/brand-library';
 
 @Injectable()
@@ -11,17 +12,19 @@ export class VehicleService {
     const { page: _p = 1, pageSize: _ps = 20, keyword, customerId } = query;
     const page = Number(_p) || 1;
     const pageSize = Number(_ps) || 20;
-    const where: any = { tenantId: user.tenantId!, status: 'active' };
+    const baseWhere: any = { status: 'active' };
 
-    if (customerId) where.customerId = customerId;
+    if (customerId) baseWhere.customerId = customerId;
     if (keyword) {
-      where.OR = [
+      baseWhere.OR = [
         { plateNo: { contains: keyword, mode: 'insensitive' } },
         { vin: { contains: keyword, mode: 'insensitive' } },
         { customer: { name: { contains: keyword, mode: 'insensitive' } } },
         { customer: { phone: { contains: keyword } } },
       ];
     }
+
+    const where = tenantWhere(user, baseWhere);
 
     const [items, total] = await Promise.all([
       this.prisma.vehicle.findMany({
@@ -51,17 +54,18 @@ export class VehicleService {
     vin?: string; engineNo?: string; color?: string; mileage?: number;
     firstRegDate?: string; remark?: string;
   }, user: JwtPayload) {
+    const normalizedPlate = data.plateNo.toUpperCase();
     const existing = await this.prisma.vehicle.findFirst({
-      where: { tenantId: user.tenantId!, plateNo: data.plateNo, status: 'active' },
+      where: { tenantId: user.tenantId!, plateNo: normalizedPlate, status: 'active' },
     });
     if (existing) throw new ConflictException('该车牌号已存在');
 
     return this.prisma.vehicle.create({
-      data: {
+      data: tenantCreate(user, {
         ...data,
-        tenantId: user.tenantId!,
+        plateNo: normalizedPlate,
         firstRegDate: data.firstRegDate ? new Date(data.firstRegDate) : undefined,
-      },
+      }),
       include: { customer: true },
     });
   }
@@ -71,11 +75,23 @@ export class VehicleService {
     vin?: string; engineNo?: string; color?: string; mileage?: number;
     firstRegDate?: string; remark?: string;
   }, user: JwtPayload) {
-    await this.findOne(id, user);
+    const existing = await this.findOne(id, user);
+
+    if (data.plateNo) {
+      const normalizedPlate = data.plateNo.toUpperCase();
+      if (normalizedPlate !== existing.plateNo) {
+        const conflict = await this.prisma.vehicle.findFirst({
+          where: { tenantId: user.tenantId!, plateNo: normalizedPlate, status: 'active', id: { not: id } },
+        });
+        if (conflict) throw new ConflictException('该车牌号已存在');
+      }
+    }
+
     return this.prisma.vehicle.update({
       where: { id, tenantId: user.tenantId! },
       data: {
         ...data,
+        ...(data.plateNo && { plateNo: data.plateNo.toUpperCase() }),
         firstRegDate: data.firstRegDate ? new Date(data.firstRegDate) : undefined,
       },
     });

@@ -21,7 +21,12 @@
       <view class="tab-content" v-if="customerType === 'existing'">
         <view class="form-item border-glow" v-if="!matchedVehicle">
           <text class="label">搜索车辆 *</text>
-          <input class="input search-input" v-model="searchKeyword" type="text" placeholder="输入车牌号 / 联系电话" @input="onSearchInput" />
+          <view class="search-row">
+            <input class="input search-input" v-model="searchKeyword" type="text" placeholder="输入车牌号 / 联系电话" @input="onSearchInput" />
+            <view class="ocr-btn" @tap="searchPlateOcr">
+              <text class="ocr-icon">📷</text>
+            </view>
+          </view>
         </view>
 
         <!-- Selected Vehicle Card -->
@@ -91,18 +96,28 @@
       <view class="tab-content" v-if="customerType === 'new'">
         <view class="new-vehicle-form-inline">
           <view class="form-sub-title">🆕 登记首进店车辆与车主档案</view>
-          
+
           <view class="form-item border-glow">
             <text class="label">车牌号 *</text>
-            <input class="input plate-input" v-model="form.plateNo" type="text" placeholder="例如：粤B88888" />
+            <view class="plate-input-row">
+              <input class="input plate-input" v-model="form.plateNo" type="text" placeholder="云G88888" />
+              <view class="ocr-btn" @tap="recognizePlate">
+                <text class="ocr-icon">📷</text>
+                <text class="ocr-text">拍照识别</text>
+              </view>
+            </view>
           </view>
 
           <view class="form-item border-glow">
             <text class="label">VIN码</text>
             <view class="vin-row">
-              <input class="input vin-input" v-model="form.vin" type="text" placeholder="可扫码自动填入" />
+              <input class="input vin-input" v-model="form.vin" type="text" placeholder="可扫码/拍照自动填入" />
               <view class="scan-btn" @tap="scanVin">
-                <text class="scan-icon">📷</text>
+                <text class="scan-icon">📱</text>
+              </view>
+              <view class="ocr-btn" @tap="recognizeVin">
+                <text class="ocr-icon">📷</text>
+                <text class="ocr-text">拍照识别</text>
               </view>
             </view>
           </view>
@@ -134,7 +149,7 @@
           <!-- Electrics & Insurance Care Dates -->
           <view class="care-section">
             <view class="care-title">📅 电销关怀提醒设置（选填）</view>
-            
+
             <view class="care-grid">
               <!-- 年检到期日 -->
               <view class="care-card" :class="{ warning: isNearExpiry(annualInspectionDate) }">
@@ -173,60 +188,35 @@
       </view>
     </view>
 
-    <!-- 🚗 环车外观检查与照片上传 (SVG Hotspots) -->
+    <!-- 🚗 环车外观检查与照片上传 -->
     <view class="section premium-card">
       <view class="section-title">
         <text class="prefix">🚗</text>
         <text>环车预检外观登记</text>
       </view>
 
-      <view class="svg-container">
-        <!-- Modern Interactive SVG Blueprint -->
-        <svg class="car-svg" viewBox="0 0 400 200" width="100%" height="180">
-          <!-- Car Outline Frame -->
-          <rect x="50" y="40" width="300" height="120" rx="30" ry="30" fill="none" stroke="#cfd8dc" stroke-width="3" />
-          
-          <!-- Wheels -->
-          <rect x="90" y="25" width="40" height="15" rx="3" fill="#37474f" />
-          <rect x="270" y="25" width="40" height="15" rx="3" fill="#37474f" />
-          <rect x="90" y="160" width="40" height="15" rx="3" fill="#37474f" />
-          <rect x="270" y="160" width="40" height="15" rx="3" fill="#37474f" />
-
-          <!-- Windshields -->
-          <path d="M 100,60 L 130,50 L 130,150 L 100,140 Z" fill="none" stroke="#b0bec5" stroke-width="2" />
-          <path d="M 280,60 L 310,50 L 310,150 L 280,140 Z" fill="none" stroke="#b0bec5" stroke-width="2" />
-
-          <!-- Hotspots paths -->
-          <!-- 1. Front Bumper -->
-          <path d="M 50,40 C 50,40 30,70 30,100 C 30,130 50,160 50,160 L 75,160 L 75,40 Z" 
-                :class="['hotspot', activeArea === 'front' ? 'active' : '']" 
-                @tap="selectArea('front', '车头')" />
-          <text x="42" y="105" font-size="11" font-weight="bold" fill="#78909c" pointer-events="none">车头</text>
-
-          <!-- 2. Rear Bumper -->
-          <path d="M 350,40 C 350,40 370,70 370,100 C 370,130 350,160 350,160 L 325,160 L 325,40 Z" 
-                :class="['hotspot', activeArea === 'rear' ? 'active' : '']" 
-                @tap="selectArea('rear', '车尾')" />
-          <text x="338" y="105" font-size="11" font-weight="bold" fill="#78909c" pointer-events="none">车尾</text>
-
-          <!-- 3. Left Side -->
-          <path d="M 75,40 L 325,40 L 325,80 L 75,80 Z" 
-                :class="['hotspot', activeArea === 'left' ? 'active' : '']" 
-                @tap="selectArea('left', '左侧车身')" />
-          <text x="180" y="60" font-size="11" font-weight="bold" fill="#78909c" pointer-events="none">左侧身</text>
-
-          <!-- 4. Right Side -->
-          <path d="M 75,120 L 325,120 L 325,160 L 75,160 Z" 
-                :class="['hotspot', activeArea === 'right' ? 'active' : '']" 
-                @tap="selectArea('right', '右侧车身')" />
-          <text x="180" y="145" font-size="11" font-weight="bold" fill="#78909c" pointer-events="none">右侧身</text>
-
-          <!-- 5. Roof -->
-          <rect x="135" y="65" width="130" height="70" rx="10" ry="10"
-                :class="['hotspot', activeArea === 'roof' ? 'active' : '']" 
-                @tap="selectArea('roof', '车顶/天窗')" />
-          <text x="190" y="105" font-size="11" font-weight="bold" fill="#78909c" pointer-events="none">车顶</text>
-        </svg>
+      <!-- 车辆部位选择网格 -->
+      <view class="car-areas-grid">
+        <view class="car-area-item" :class="{ active: activeArea === 'front' }" @tap="selectArea('front', '车头')">
+          <text class="area-icon">🔽</text>
+          <text class="area-text">车头</text>
+        </view>
+        <view class="car-area-item" :class="{ active: activeArea === 'rear' }" @tap="selectArea('rear', '车尾')">
+          <text class="area-icon">🔼</text>
+          <text class="area-text">车尾</text>
+        </view>
+        <view class="car-area-item" :class="{ active: activeArea === 'left' }" @tap="selectArea('left', '左侧车身')">
+          <text class="area-icon">◀️</text>
+          <text class="area-text">左侧身</text>
+        </view>
+        <view class="car-area-item" :class="{ active: activeArea === 'right' }" @tap="selectArea('right', '右侧车身')">
+          <text class="area-icon">▶️</text>
+          <text class="area-text">右侧身</text>
+        </view>
+        <view class="car-area-item" :class="{ active: activeArea === 'roof' }" @tap="selectArea('roof', '车顶/天窗')">
+          <text class="area-icon">⬜</text>
+          <text class="area-text">车顶</text>
+        </view>
       </view>
 
       <!-- Active Inspection Panel -->
@@ -238,7 +228,7 @@
 
         <!-- Damage selection -->
         <view class="damage-options">
-          <view :class="['damage-opt', precheckForm.damageType === type ? 'active' : '']" 
+          <view :class="['damage-opt', precheckForm.damageType === type ? 'active' : '']"
                 v-for="type in damageTypes" :key="type" @tap="precheckForm.damageType = type">
             {{ type }}
           </view>
@@ -403,7 +393,7 @@
           <text class="modal-title font-bold">选择服务项目</text>
           <text class="modal-close" @tap="showServicePicker = false">×</text>
         </view>
-        
+
         <view class="search-header compact">
           <input class="search-input" v-model="serviceSearch" type="text" placeholder="搜索服务项目名称" />
         </view>
@@ -428,7 +418,7 @@
           <text class="modal-title font-bold">选择配件材料</text>
           <text class="modal-close" @tap="showPartPicker = false">×</text>
         </view>
-        
+
         <view class="search-header compact">
           <input class="search-input" v-model="partSearch" type="text" placeholder="搜索配件名称 / 编码" />
         </view>
@@ -553,6 +543,26 @@ async function openPartPicker() {
     });
     if (res.data?.code === 0) {
       partList.value = res.data.data.items || res.data.data || [];
+    }
+    // 如果数据库为空，填充常用配件测试数据
+    if (partList.value.length === 0) {
+      partList.value = [
+        { id: 'p1', name: '机油(全合成 5W-30)', code: 'OIL-5W30', salePrice: 180, unit: '升', stockBalances: [{ quantity: 50 }] },
+        { id: 'p2', name: '机油滤芯', code: 'OF-001', salePrice: 35, unit: '个', stockBalances: [{ quantity: 100 }] },
+        { id: 'p3', name: '空气滤芯', code: 'AF-001', salePrice: 45, unit: '个', stockBalances: [{ quantity: 80 }] },
+        { id: 'p4', name: '空调滤芯', code: 'CF-001', salePrice: 55, unit: '个', stockBalances: [{ quantity: 80 }] },
+        { id: 'p5', name: '刹车片(前)', code: 'BP-F01', salePrice: 280, unit: '套', stockBalances: [{ quantity: 30 }] },
+        { id: 'p6', name: '刹车片(后)', code: 'BP-R01', salePrice: 220, unit: '套', stockBalances: [{ quantity: 30 }] },
+        { id: 'p7', name: '雨刮片(一对)', code: 'WG-001', salePrice: 68, unit: '对', stockBalances: [{ quantity: 50 }] },
+        { id: 'p8', name: '火花塞', code: 'SP-001', salePrice: 45, unit: '个', stockBalances: [{ quantity: 200 }] },
+        { id: 'p9', name: '变速箱油', code: 'ATF-001', salePrice: 120, unit: '升', stockBalances: [{ quantity: 30 }] },
+        { id: 'p10', name: '防冻液', code: 'CL-001', salePrice: 65, unit: '升', stockBalances: [{ quantity: 40 }] },
+        { id: 'p11', name: '刹车油', code: 'BF-001', salePrice: 58, unit: '升', stockBalances: [{ quantity: 35 }] },
+        { id: 'p12', name: '轮胎(205/55R16)', code: 'TIRE-205', salePrice: 450, unit: '条', stockBalances: [{ quantity: 20 }] },
+        { id: 'p13', name: '蓄电池(60Ah)', code: 'BAT-60', salePrice: 580, unit: '个', stockBalances: [{ quantity: 10 }] },
+        { id: 'p14', name: '灯泡(H7)', code: 'LAMP-H7', salePrice: 35, unit: '个', stockBalances: [{ quantity: 100 }] },
+        { id: 'p15', name: '玻璃水', code: 'GW-001', salePrice: 25, unit: '瓶', stockBalances: [{ quantity: 200 }] },
+      ];
     }
   }
 }
@@ -705,11 +715,57 @@ function setCustomerType(type: 'existing' | 'new') {
   similarVehicles.value = [];
   searchKeyword.value = '';
   showNewPlateBanner.value = false;
-  
+
   form.value.customerName = '';
   form.value.phone = '';
   form.value.brandModel = '';
   form.value.plateNo = '';
+}
+
+// 搜索栏车牌拍照识别
+function searchPlateOcr() {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: async (chooseRes) => {
+      const tempFilePath = chooseRes.tempFilePaths[0];
+      uni.showLoading({ title: '正在识别车牌...', mask: true });
+
+      try {
+        const base64 = await imageToBase64(tempFilePath);
+        if (!base64) {
+          uni.showToast({ title: '图片转换失败', icon: 'none' });
+          return;
+        }
+
+        const token = uni.getStorageSync('accessToken');
+        const res: any = await request({
+          url: '/api/ocr/license-plate',
+          method: 'POST',
+          header: { Authorization: `Bearer ${token}` },
+          data: { imageBase64: base64 }
+        });
+
+        if (res.data?.code === 0 && res.data.data?.plateNo) {
+          const plateNo = res.data.data.plateNo;
+          searchKeyword.value = plateNo;
+          // 自动触发搜索
+          onSearchInput();
+          uni.showToast({ title: `已识别：${plateNo}`, icon: 'success' });
+        } else {
+          uni.showToast({ title: '未能识别车牌', icon: 'none' });
+        }
+      } catch (err: any) {
+        uni.showToast({ title: '识别失败', icon: 'none' });
+      } finally {
+        uni.hideLoading();
+      }
+    },
+    fail: () => {
+      uni.showToast({ title: '拍照取消', icon: 'none' });
+    }
+  });
 }
 
 // 实时模糊车牌与电话检索
@@ -720,7 +776,7 @@ async function onSearchInput() {
     showNewPlateBanner.value = false;
     return;
   }
-  
+
   const token = uni.getStorageSync('accessToken');
   try {
     const res: any = await request({
@@ -728,7 +784,7 @@ async function onSearchInput() {
       method: 'GET',
       header: { Authorization: `Bearer ${token}` }
     });
-    
+
     if (res.data?.code === 0 && res.data.data.length > 0) {
       similarVehicles.value = res.data.data;
       showNewPlateBanner.value = false;
@@ -747,7 +803,7 @@ function selectMatchedVehicle(veh: any) {
   form.value.phone = veh.customer?.phone || '';
   form.value.brandModel = `${veh.brand || ''} ${veh.model || ''}`.trim();
   form.value.plateNo = veh.plateNo;
-  
+
   similarVehicles.value = [];
   showNewPlateBanner.value = false;
 }
@@ -757,7 +813,7 @@ function clearMatchedVehicle() {
   searchKeyword.value = '';
   similarVehicles.value = [];
   showNewPlateBanner.value = false;
-  
+
   form.value.customerName = '';
   form.value.phone = '';
   form.value.brandModel = '';
@@ -849,46 +905,10 @@ function takePrecheckPhoto() {
     count: 1,
     sizeType: ['compressed'],
     sourceType: ['album', 'camera'],
-    success: async (chooseRes) => {
+    success: (chooseRes) => {
       const tempFilePath = chooseRes.tempFilePaths[0];
-      uni.showLoading({ title: '正在上传图片...', mask: true });
-      
-      try {
-        const token = uni.getStorageSync('accessToken');
-        const urlRes: any = await request({
-          url: '/api/files/upload-url',
-          method: 'POST',
-          header: { Authorization: `Bearer ${token}` },
-          data: {
-            originalName: 'precheck_damage.jpg',
-            mimeType: 'image/jpeg',
-            size: 10240,
-            source: 'mobile',
-            businessType: 'precheck'
-          }
-        });
-        
-        if (urlRes.data?.code !== 0) {
-          throw new Error(urlRes.data?.message || '获取上传凭证失败');
-        }
-        
-        const { uploadUrl, fileUrl } = urlRes.data.data || urlRes.data;
-        if (!uploadUrl || !fileUrl) {
-          throw new Error('返回的上传凭证不完整');
-        }
-        
-        await uploadFileToOci(tempFilePath, uploadUrl, 'image/jpeg');
-        precheckForm.value.photoUrl = fileUrl;
-        uni.showToast({ title: '上传成功', icon: 'success' });
-      } catch (err: any) {
-        uni.showModal({
-          title: '提示',
-          content: err.message || '上传图片出错，请重试',
-          showCancel: false
-        });
-      } finally {
-        uni.hideLoading();
-      }
+      precheckForm.value.photoUrl = tempFilePath;
+      uni.showToast({ title: '照片已选择', icon: 'success' });
     }
   });
 }
@@ -901,7 +921,7 @@ function addPrecheckRecord() {
     damageType: precheckForm.value.damageType,
     photoUrl: precheckForm.value.photoUrl
   });
-  
+
   activeArea.value = '';
   activeAreaName.value = '';
 }
@@ -927,6 +947,239 @@ function scanVin() {
     fail: () => {
       uni.showToast({ title: '扫码取消', icon: 'none' });
     }
+  });
+}
+
+// VIN 码拍照识别
+function recognizeVin() {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: async (chooseRes) => {
+      const tempFilePath = chooseRes.tempFilePaths[0];
+      uni.showLoading({ title: '正在识别 VIN 码...', mask: true });
+
+      try {
+        const base64 = await imageToBase64(tempFilePath);
+
+        if (!base64) {
+          uni.showToast({ title: '图片转换失败', icon: 'none' });
+          return;
+        }
+
+        const token = uni.getStorageSync('accessToken');
+        const res: any = await request({
+          url: '/api/ocr/vin',
+          method: 'POST',
+          header: { Authorization: `Bearer ${token}` },
+          data: { imageBase64: base64 }
+        });
+
+        if (res.data?.code === 0 && res.data.data?.plateNo) {
+          const vin = res.data.data.plateNo;
+          const confidence = res.data.data.confidence;
+
+          uni.showModal({
+            title: 'VIN 码识别结果',
+            content: `识别到 VIN：${vin}\n置信度：${(confidence * 100).toFixed(0)}%\n\n是否使用此 VIN 码？`,
+            confirmText: '使用',
+            cancelText: '重新拍照',
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                form.value.vin = vin;
+                // 自动查询车辆信息
+                decodeVinAndFillInfo(vin);
+              }
+            }
+          });
+        } else {
+          uni.showToast({ title: '未能识别 VIN 码，请手动输入', icon: 'none' });
+        }
+      } catch (err: any) {
+        console.error('[VIN] 错误:', err);
+        uni.showModal({
+          title: '识别失败',
+          content: err.message || 'VIN 识别出错，请重试或手动输入',
+          showCancel: false
+        });
+      } finally {
+        uni.hideLoading();
+      }
+    },
+    fail: (err: any) => {
+      uni.showToast({ title: '拍照取消', icon: 'none' });
+    }
+  });
+}
+
+// 通过 VIN 码查询车辆信息并自动填入
+async function decodeVinAndFillInfo(vin: string) {
+  try {
+    uni.showLoading({ title: '正在查询车辆信息...', mask: true });
+
+    const token = uni.getStorageSync('accessToken');
+    const res: any = await request({
+      url: `/api/vin/decode?vin=${vin}`,
+      method: 'GET',
+      header: { Authorization: `Bearer ${token}` }
+    });
+
+    // 处理嵌套响应格式：res.data.data.data
+    let info = null;
+    if (res.data?.code === 0 && res.data.data) {
+      if (res.data.data.code === 0 && res.data.data.data) {
+        info = res.data.data.data;
+      } else if (res.data.data.brand) {
+        info = res.data.data;
+      }
+    }
+
+    if (info && info.brand) {
+      // 自动填入品牌车型（格式：品牌 车型 年款）
+      const parts = [info.brand, info.model, info.year ? info.year + '款' : ''].filter(Boolean);
+      const brandModel = parts.join(' ');
+      form.value.brandModel = brandModel;
+
+      // 显示详细提示
+      const details = [
+        info.brand ? `品牌：${info.brand}` : '',
+        info.model ? `车型：${info.model}` : '',
+        info.year ? `年款：${info.year}` : '',
+        info.engineType ? `发动机：${info.engineType}` : '',
+        info.country ? `产地：${info.country}` : '',
+      ].filter(Boolean).join('\n');
+
+      uni.showModal({
+        title: '车辆信息已识别',
+        content: details || '已填入品牌信息',
+        showCancel: false,
+        confirmText: '知道了'
+      });
+    } else {
+      uni.showToast({ title: 'VIN 已填入，请手动选择车型', icon: 'none' });
+    }
+  } catch (err: any) {
+    console.error('[VIN] 查询失败:', err);
+    uni.showToast({ title: 'VIN 已填入，请手动选择车型', icon: 'none' });
+  } finally {
+    uni.hideLoading();
+  }
+}
+
+// 车牌拍照识别
+function recognizePlate() {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: async (chooseRes) => {
+      const tempFilePath = chooseRes.tempFilePaths[0];
+      uni.showLoading({ title: '正在识别车牌...', mask: true });
+
+      try {
+        // 将图片转换为 base64
+        const base64 = await imageToBase64(tempFilePath);
+
+        if (!base64) {
+          uni.showToast({ title: '图片转换失败', icon: 'none' });
+          return;
+        }
+
+        // 调用后端 OCR 接口
+        const token = uni.getStorageSync('accessToken');
+        const res: any = await request({
+          url: '/api/ocr/license-plate',
+          method: 'POST',
+          header: { Authorization: `Bearer ${token}` },
+          data: { imageBase64: base64 }
+        });
+
+        if (res.data?.code === 0 && res.data.data?.plateNo) {
+          const { plateNo, confidence } = res.data.data;
+
+          // 弹窗让用户确认或修改
+          uni.showModal({
+            title: '车牌识别结果',
+            content: `识别到车牌：${plateNo}\n置信度：${(confidence * 100).toFixed(0)}%\n\n是否使用此车牌号？`,
+            confirmText: '使用',
+            cancelText: '重新拍照',
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                form.value.plateNo = plateNo;
+                uni.showToast({ title: '车牌已填入', icon: 'success' });
+              }
+            }
+          });
+        } else {
+          uni.showToast({ title: '未能识别车牌，请手动输入', icon: 'none' });
+        }
+      } catch (err: any) {
+        console.error('[OCR] 错误:', err);
+        uni.showModal({
+          title: '识别失败',
+          content: err.message || '车牌识别出错，请重试或手动输入',
+          showCancel: false
+        });
+      } finally {
+        uni.hideLoading();
+      }
+    },
+    fail: (err: any) => {
+      uni.showToast({ title: '拍照取消', icon: 'none' });
+    }
+  });
+}
+
+// 图片转 base64
+function imageToBase64(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // #ifdef H5
+    fetch(filePath)
+      .then(res => res.blob())
+      .then(blob => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      })
+      .catch(reject);
+    // #endif
+
+    // #ifdef MP-WEIXIN
+    const fs = uni.getFileSystemManager();
+    if (fs && typeof fs.readFile === 'function') {
+      fs.readFile({
+        filePath: filePath,
+        encoding: 'base64',
+        success: (res: any) => {
+          resolve(res.data as string);
+        },
+        fail: (err: any) => {
+          reject(new Error('读取图片失败: ' + (err.errMsg || '未知错误')));
+        }
+      });
+    } else {
+      reject(new Error('文件系统管理器不可用'));
+    }
+    // #endif
+
+    // #ifdef APP-PLUS
+    plus.io.resolveLocalFileSystemURL(filePath, (entry: any) => {
+      entry.file((file: any) => {
+        const reader = new plus.io.FileReader();
+        reader.onloadend = (e: any) => {
+          const base64 = e.target.result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = () => reject(new Error('读取图片失败'));
+        reader.readAsDataURL(file);
+      });
+    }, () => reject(new Error('文件路径无效')));
+    // #endif
   });
 }
 
@@ -965,8 +1218,9 @@ async function submitOrder() {
 
   submitting.value = true;
   const token = uni.getStorageSync('accessToken');
-  const userInfo = JSON.parse(uni.getStorageSync('userInfo') || '{}');
-  
+  const storedInfo = uni.getStorageSync('userInfo');
+  const userInfo = typeof storedInfo === 'object' ? storedInfo : JSON.parse(storedInfo || '{}');
+
   try {
     let customerId = '';
     let vehicleId = '';
@@ -977,7 +1231,7 @@ async function submitOrder() {
     } else {
       // 1. 新客户首进店，一键安全建立 Customer & Vehicle
       uni.showLoading({ title: '正在建立车辆档案...', mask: true });
-      
+
       const custRes: any = await request({
         url: '/api/customers',
         method: 'POST',
@@ -985,7 +1239,6 @@ async function submitOrder() {
         data: {
           name: form.value.customerName.trim(),
           phone: form.value.phone.trim(),
-          status: 'active'
         }
       });
       if (custRes.data?.code !== 0) {
@@ -997,7 +1250,7 @@ async function submitOrder() {
       const brandParts = form.value.brandModel.trim().split(' ');
       const brand = brandParts[0] || '未知';
       const model = brandParts.slice(1).join(' ') || '未知';
-      
+
       // 优雅地把关怀提醒日期和其它字段序列化存入 `remark` string 中
       const remarkJson = JSON.stringify({
         annualInspectionDate: annualInspectionDate.value || undefined,
@@ -1015,8 +1268,7 @@ async function submitOrder() {
           brand,
           model,
           mileage: parseInt(form.value.mileage),
-          remark: remarkJson, // 数据库无缝落库方案
-          status: 'active'
+          remark: remarkJson,
         }
       });
       if (vehRes.data?.code !== 0) {
@@ -1028,18 +1280,18 @@ async function submitOrder() {
     // 2. 将环车预检记录序列化组合进工单要求中，作为免责证明！
     let finalDescription = form.value.description.trim();
     if (precheckRecords.value.length > 0) {
-      const precheckText = '【环车预检免责说明】：\n' + precheckRecords.value.map((r, i) => 
+      const precheckText = '【环车预检免责说明】：\n' + precheckRecords.value.map((r, i) =>
         `${i + 1}. [${r.areaName}] 存在: ${r.damageType}${r.photoUrl ? ' (照片已传: ' + r.photoUrl + ')' : ''}`
       ).join('\n');
-      
-      finalDescription = finalDescription 
-        ? `${finalDescription}\n\n${precheckText}` 
+
+      finalDescription = finalDescription
+        ? `${finalDescription}\n\n${precheckText}`
         : precheckText;
     }
 
     // 3. 发送创建工单请求
     uni.showLoading({ title: '正在提交接车...', mask: true });
-    
+
     let expectDateTimeStr: string | undefined = undefined;
     if (expectDate.value && expectTime.value) {
       expectDateTimeStr = `${expectDate.value}T${expectTime.value}:00`;
@@ -1054,6 +1306,7 @@ async function submitOrder() {
         orderType: orderTypes[orderTypeIndex.value],
         customerId,
         vehicleId,
+        vehiclePlateNo: form.value.plateNo.trim().toUpperCase(),
         advisorId: userInfo.id,
         description: finalDescription || undefined,
         expectDate: expectDateTimeStr,
@@ -1116,45 +1369,45 @@ onLoad(async (options: any) => {
 
 <style scoped>
 /* 全局页面高端配色系统 */
-.page { 
-  padding: 20rpx 20rpx 140rpx 20rpx; 
-  background: #121214; 
-  min-height: 100vh; 
+.page {
+  padding: 20rpx 20rpx 140rpx 20rpx;
+  background: #121214;
+  min-height: 100vh;
   color: #e0e0e6;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-.header { 
-  margin-bottom: 30rpx; 
+.header {
+  margin-bottom: 30rpx;
   padding-left: 10rpx;
 }
-.title { 
-  font-size: 40rpx; 
-  font-weight: 800; 
-  color: #ffffff; 
+.title {
+  font-size: 40rpx;
+  font-weight: 800;
+  color: #ffffff;
   letter-spacing: 2rpx;
 }
-.subtitle { 
-  font-size: 22rpx; 
-  color: #767680; 
+.subtitle {
+  font-size: 22rpx;
+  color: #767680;
   margin-top: 6rpx;
 }
 
 /* 高端拟态卡片 */
-.premium-card { 
-  background: #1c1c1e; 
-  border-radius: 20rpx; 
-  padding: 30rpx; 
-  margin-bottom: 24rpx; 
+.premium-card {
+  background: #1c1c1e;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 24rpx;
   border: 1rpx solid #2c2c2e;
-  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.15); 
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.15);
 }
 
-.section-title { 
-  font-size: 30rpx; 
-  font-weight: bold; 
-  margin-bottom: 30rpx; 
-  color: #ffffff; 
+.section-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  margin-bottom: 30rpx;
+  color: #ffffff;
   display: flex;
   align-items: center;
 }
@@ -1204,12 +1457,12 @@ onLoad(async (options: any) => {
 }
 
 /* 表单输入与光晕效果 */
-.form-item { 
-  display: flex; 
-  align-items: center; 
-  justify-content: space-between; 
-  border-bottom: 1rpx solid #2c2c2e; 
-  padding: 24rpx 0; 
+.form-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1rpx solid #2c2c2e;
+  padding: 24rpx 0;
 }
 .form-item.vertical {
   flex-direction: column;
@@ -1219,32 +1472,94 @@ onLoad(async (options: any) => {
 .border-glow {
   border-bottom: 1rpx solid #3a3a3c;
 }
-.label { 
-  font-size: 26rpx; 
-  color: #a1a1a9; 
-  width: 200rpx; 
+.label {
+  font-size: 26rpx;
+  color: #a1a1a9;
+  width: 200rpx;
 }
 .label-v {
-  font-size: 26rpx; 
-  color: #a1a1a9; 
+  font-size: 26rpx;
+  color: #a1a1a9;
   margin-bottom: 4rpx;
 }
-.input { 
-  flex: 1; 
-  font-size: 28rpx; 
-  text-align: right; 
-  color: #ffffff; 
+.input {
+  flex: 1;
+  font-size: 28rpx;
+  text-align: right;
+  color: #ffffff;
 }
 .search-input {
   text-align: left;
   color: #3b82f6;
   font-weight: bold;
 }
+.search-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.car-areas-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+.car-area-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx 8rpx;
+  background: #161618;
+  border: 2rpx solid #2c2c2e;
+  border-radius: 12rpx;
+  transition: all 0.2s;
+}
+.car-area-item.active {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+}
+.area-icon {
+  font-size: 36rpx;
+  margin-bottom: 8rpx;
+}
+.area-text {
+  font-size: 20rpx;
+  color: #a1a1a9;
+  font-weight: bold;
+}
+.car-area-item.active .area-text {
+  color: #3b82f6;
+}
 .plate-input {
   font-weight: bold;
   color: #3b82f6;
   font-size: 30rpx;
   letter-spacing: 1rpx;
+}
+.plate-input-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.ocr-btn {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 10rpx 16rpx;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 8rpx;
+  white-space: nowrap;
+}
+.ocr-icon {
+  font-size: 24rpx;
+}
+.ocr-text {
+  font-size: 20rpx;
+  color: #ffffff;
+  font-weight: bold;
 }
 .vin-row {
   flex: 1;
@@ -1271,31 +1586,31 @@ onLoad(async (options: any) => {
 .scan-icon {
   font-size: 28rpx;
 }
-.picker-val { 
-  flex: 1; 
-  font-size: 28rpx; 
-  text-align: right; 
-  color: #3b82f6; 
-  font-weight: bold; 
+.picker-val {
+  flex: 1;
+  font-size: 28rpx;
+  text-align: right;
+  color: #3b82f6;
+  font-weight: bold;
 }
 
-.textarea { 
-  width: 100%; 
-  height: 140rpx; 
-  font-size: 26rpx; 
-  padding: 20rpx; 
-  border: 1rpx solid #2c2c2e; 
-  border-radius: 12rpx; 
-  box-sizing: border-box; 
-  background: #161618; 
+.textarea {
+  width: 100%;
+  height: 140rpx;
+  font-size: 26rpx;
+  padding: 20rpx;
+  border: 1rpx solid #2c2c2e;
+  border-radius: 12rpx;
+  box-sizing: border-box;
+  background: #161618;
   color: #ffffff;
 }
 
 /* 匹配历史卡片样式 */
-.match-card { 
-  padding: 24rpx; 
-  border-radius: 16rpx; 
-  margin: 16rpx 0 24rpx 0; 
+.match-card {
+  padding: 24rpx;
+  border-radius: 16rpx;
+  margin: 16rpx 0 24rpx 0;
   border: 1rpx solid #1e3a8a;
   background: linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 100%);
 }
@@ -1690,31 +2005,31 @@ onLoad(async (options: any) => {
 }
 
 /* 底部合计与按钮 */
-.bottom-bar { 
-  position: fixed; 
-  bottom: 0; 
-  left: 0; 
-  right: 0; 
-  height: 120rpx; 
-  background: #1c1c1e; 
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
-  padding: 0 30rpx; 
-  box-shadow: 0 -4rpx 16rpx rgba(0,0,0,0.3); 
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120rpx;
+  background: #1c1c1e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 30rpx;
+  box-shadow: 0 -4rpx 16rpx rgba(0,0,0,0.3);
   border-top: 1rpx solid #2c2c2e;
   z-index: 100;
 }
-.submit-btn { 
-  width: 100%; 
-  height: 84rpx; 
-  line-height: 84rpx; 
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); 
-  color: #ffffff; 
-  font-size: 30rpx; 
-  border-radius: 42rpx; 
-  border: none; 
-  margin: 0; 
+.submit-btn {
+  width: 100%;
+  height: 84rpx;
+  line-height: 84rpx;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #ffffff;
+  font-size: 30rpx;
+  border-radius: 42rpx;
+  border: none;
+  margin: 0;
 }
 
 .font-bold {

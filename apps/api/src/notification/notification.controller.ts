@@ -20,4 +20,14 @@ export class NotificationController {
   ) {
     return this.service.findAll(user.tenantId!, query);
   }
+
+  @Get('unread')
+  @ApiOperation({ summary: '未读通知列表' })
+  async getUnread(@CurrentUser() user: JwtPayload) {
+    const result = await this.service.findAll(user.tenantId!, {
+      status: 'pending',
+      pageSize: 50,
+    });
+    return result;
+  }
 }

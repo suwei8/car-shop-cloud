@@ -89,7 +89,7 @@ describe('PaymentGatewayService', () => {
       const mockProvider = createMockProvider();
       const service = createService([mockProvider]);
 
-      mockPrisma.payment.findUnique.mockResolvedValue({
+      mockPrisma.payment.findFirst.mockResolvedValue({
         id: 'pay-1',
         amount: 10.00,
         status: 'pending',
@@ -98,9 +98,10 @@ describe('PaymentGatewayService', () => {
       });
       mockPrisma.payment.update.mockResolvedValue({});
 
-      const result = await service.createPaymentOrder('pay-1', 'wechat');
+      const result = await service.createPaymentOrder('pay-1', 'wechat', 't1');
 
       expect(result.codeUrl).toBeDefined();
+      expect(mockPrisma.payment.findFirst).toHaveBeenCalledWith({ where: { id: 'pay-1', tenantId: 't1' } });
       expect(mockPrisma.payment.update).toHaveBeenCalledWith({
         where: { id: 'pay-1' },
         data: expect.objectContaining({ status: 'pending' }),
@@ -110,9 +111,17 @@ describe('PaymentGatewayService', () => {
 
     it('throws NotFoundException for missing payment', async () => {
       const service = createService();
-      mockPrisma.payment.findUnique.mockResolvedValue(null);
+      mockPrisma.payment.findFirst.mockResolvedValue(null);
 
-      await expect(service.createPaymentOrder('nonexistent', 'wechat'))
+      await expect(service.createPaymentOrder('nonexistent', 'wechat', 't1'))
+        .rejects.toThrow('支付记录不存在');
+    });
+
+    it('throws NotFoundException for cross-tenant payment', async () => {
+      const service = createService();
+      mockPrisma.payment.findFirst.mockResolvedValue(null);
+
+      await expect(service.createPaymentOrder('pay-1', 'wechat', 'wrong-tenant'))
         .rejects.toThrow('支付记录不存在');
     });
   });
@@ -167,20 +176,21 @@ describe('PaymentGatewayService', () => {
   describe('queryPaymentStatus', () => {
     it('returns expired for expired pending payment', async () => {
       const service = createService();
-      mockPrisma.payment.findUnique.mockResolvedValue({
+      mockPrisma.payment.findFirst.mockResolvedValue({
         id: 'pay-1',
         status: 'pending',
         expiredAt: new Date(Date.now() - 1000),
         payMethod: 'mock',
       });
 
-      const result = await service.queryPaymentStatus('pay-1');
+      const result = await service.queryPaymentStatus('pay-1', 't1');
       expect(result.status).toBe('expired');
+      expect(mockPrisma.payment.findFirst).toHaveBeenCalledWith({ where: { id: 'pay-1', tenantId: 't1' } });
     });
 
     it('returns current status for paid payment', async () => {
       const service = createService();
-      mockPrisma.payment.findUnique.mockResolvedValue({
+      mockPrisma.payment.findFirst.mockResolvedValue({
         id: 'pay-1',
         status: 'paid',
         transactionId: 'tx-1',
@@ -188,8 +198,16 @@ describe('PaymentGatewayService', () => {
         payMethod: 'mock',
       });
 
-      const result = await service.queryPaymentStatus('pay-1');
+      const result = await service.queryPaymentStatus('pay-1', 't1');
       expect(result.status).toBe('paid');
+    });
+
+    it('throws NotFoundException for cross-tenant payment', async () => {
+      const service = createService();
+      mockPrisma.payment.findFirst.mockResolvedValue(null);
+
+      await expect(service.queryPaymentStatus('pay-1', 'wrong-tenant'))
+        .rejects.toThrow('支付记录不存在');
     });
   });
 
@@ -198,7 +216,7 @@ describe('PaymentGatewayService', () => {
       const mockProvider = createMockProvider();
       const service = createService([mockProvider]);
 
-      mockPrisma.payment.findUnique.mockResolvedValue({
+      mockPrisma.payment.findFirst.mockResolvedValue({
         id: 'pay-1',
         amount: 100.00,
         refundAmount: 0,
@@ -212,9 +230,10 @@ describe('PaymentGatewayService', () => {
       mockPrisma.payment.update.mockResolvedValue({});
       mockPrisma.sequence.upsert.mockResolvedValue({ value: 1 });
 
-      const result = await service.refund('pay-1', 50, '测试退款', 'user-1');
+      const result = await service.refund('pay-1', 50, '测试退款', 'user-1', 't1');
 
       expect(result.id).toBe('refund-1');
+      expect(mockPrisma.payment.findFirst).toHaveBeenCalledWith({ where: { id: 'pay-1', tenantId: 't1' } });
       expect(mockPrisma.payment.update).toHaveBeenCalledWith({
         where: { id: 'pay-1' },
         data: expect.objectContaining({ refundAmount: 50 }),
@@ -224,7 +243,7 @@ describe('PaymentGatewayService', () => {
     it('throws BadRequestException when refund exceeds max', async () => {
       const service = createService();
 
-      mockPrisma.payment.findUnique.mockResolvedValue({
+      mockPrisma.payment.findFirst.mockResolvedValue({
         id: 'pay-1',
         amount: 100.00,
         refundAmount: 80,
@@ -234,14 +253,14 @@ describe('PaymentGatewayService', () => {
         tenantId: 't1',
       });
 
-      await expect(service.refund('pay-1', 30, '超额退款', 'user-1'))
+      await expect(service.refund('pay-1', 30, '超额退款', 'user-1', 't1'))
         .rejects.toThrow(BadRequestException);
     });
 
     it('throws BadRequestException for non-paid payment', async () => {
       const service = createService();
 
-      mockPrisma.payment.findUnique.mockResolvedValue({
+      mockPrisma.payment.findFirst.mockResolvedValue({
         id: 'pay-1',
         amount: 100.00,
         refundAmount: 0,
@@ -251,8 +270,16 @@ describe('PaymentGatewayService', () => {
         tenantId: 't1',
       });
 
-      await expect(service.refund('pay-1', 50, '退款', 'user-1'))
+      await expect(service.refund('pay-1', 50, '退款', 'user-1', 't1'))
         .rejects.toThrow(BadRequestException);
+    });
+
+    it('throws NotFoundException for cross-tenant payment', async () => {
+      const service = createService();
+      mockPrisma.payment.findFirst.mockResolvedValue(null);
+
+      await expect(service.refund('pay-1', 50, '退款', 'user-1', 'wrong-tenant'))
+        .rejects.toThrow('支付记录不存在');
     });
   });
 });

@@ -140,7 +140,7 @@ describe('DataImportService', () => {
       const result = await service.preview(buffer, mockUser);
 
       expect(result.storedValueCards.errors).toHaveLength(1);
-      expect(result.storedValueCards.errors[0].errors).toContain('当前余额必须为非负数字');
+      expect(result.storedValueCards.errors[0].errors).toContain('当前余额格式不正确，支持格式：0、0.00、123、123.45');
     });
 
     it('should detect gift exceeding balance', async () => {

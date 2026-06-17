@@ -31,7 +31,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       switch (exception.code) {
         case 'P2002':
           status = HttpStatus.CONFLICT;
-          message = '数据已存在（唯一约束冲突）';
+          message = this.resolvePrismaUniqueMessage(exception);
           break;
         case 'P2025':
           status = HttpStatus.NOT_FOUND;
@@ -57,5 +57,47 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message: Array.isArray(message) ? message.join('; ') : message,
       data: null,
     });
+  }
+
+  private resolvePrismaUniqueMessage(
+    exception: Prisma.PrismaClientKnownRequestError,
+  ): string {
+    const target = exception.meta?.target;
+    if (!target) return '数据已存在（唯一约束冲突）';
+
+    const targets = Array.isArray(target) ? target : [target];
+    const normalizedTargets = targets.map((item) => String(item).toLowerCase());
+    const joined = normalizedTargets.join(' ');
+
+    const isUserPhoneFieldTarget =
+      normalizedTargets.length === 1 && normalizedTargets[0] === 'phone';
+    const isLegacyScopedUserPhoneTarget =
+      normalizedTargets.length === 2
+      && normalizedTargets.includes('tenantid')
+      && normalizedTargets.includes('phone');
+    const isUserPhoneConstraintTarget =
+      joined === 'users_phone_key' || joined === 'users_tenantid_phone_key';
+    const isScopedCardNoFieldTarget =
+      normalizedTargets.length === 2
+      && normalizedTargets.includes('tenantid')
+      && normalizedTargets.includes('cardno');
+
+    if (isUserPhoneFieldTarget || isLegacyScopedUserPhoneTarget || isUserPhoneConstraintTarget) {
+      return '该手机号已被其他账号使用';
+    }
+
+    if (joined === 'parts_tenantid_code_key') {
+      return '配件编码已存在';
+    }
+
+    if (
+      isScopedCardNoFieldTarget ||
+      joined === 'stored_value_cards_tenantid_cardno_key' ||
+      joined === 'package_cards_tenantid_cardno_key'
+    ) {
+      return '卡号已存在';
+    }
+
+    return '数据已存在（唯一约束冲突）';
   }
 }

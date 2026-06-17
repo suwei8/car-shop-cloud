@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
 import { applyDataScope } from '../../common/utils/scope-where';
+import { tenantWhere, tenantCreate } from '../../common/utils/tenant-where';
 import { PackageCardService } from '../package-card/package-card.service';
 import { PaymentGatewayService } from '../payment/payment-gateway.service';
 import { MarketingService } from '../marketing/marketing.service';
@@ -19,12 +20,12 @@ export class SettlementService {
     const { page: _p = 1, pageSize: _ps = 20, shopId, status, workOrderId } = query;
     const page = Number(_p) || 1;
     const pageSize = Number(_ps) || 20;
-    const where: any = { tenantId: user.tenantId! };
+    const baseWhere: any = {};
+    if (shopId) baseWhere.shopId = shopId;
+    if (status) baseWhere.status = status;
+    if (workOrderId) baseWhere.workOrderId = workOrderId;
 
-    if (shopId) where.shopId = shopId;
-    if (status) where.status = status;
-    if (workOrderId) where.workOrderId = workOrderId;
-
+    const where = tenantWhere(user, baseWhere);
     const scopedWhere = applyDataScope(user, where, 'shopId', 'operatorId');
 
     const [items, total] = await Promise.all([
@@ -110,8 +111,7 @@ export class SettlementService {
 
       const settleNo = await this.generateSettleNo(user.tenantId!, tx);
       const settlement = await tx.settlement.create({
-        data: {
-          tenantId: user.tenantId!,
+        data: tenantCreate(user, {
           shopId: workOrder.shopId,
           settleNo,
           workOrderId: data.workOrderId,
@@ -133,7 +133,7 @@ export class SettlementService {
               status: onlineMethods.includes(p.payMethod) ? 'pending' : 'paid',
             })),
           },
-        },
+        }),
         include: { payments: true },
       });
 
@@ -213,6 +213,7 @@ export class SettlementService {
           const result = await this.paymentGatewayService.createPaymentOrder(
             onlinePayment.id,
             onlinePayment.payMethod as 'wechat' | 'alipay',
+            user.tenantId!,
           );
           payUrl = result.codeUrl;
           paymentId = onlinePayment.id;
@@ -331,14 +332,15 @@ export class SettlementService {
     const { page: _p = 1, pageSize: _ps = 20, payMethod, startDate, endDate } = query;
     const page = Number(_p) || 1;
     const pageSize = Number(_ps) || 20;
-    const where: any = { tenantId: user.tenantId! };
-
-    if (payMethod) where.payMethod = payMethod;
+    const baseWhere: any = {};
+    if (payMethod) baseWhere.payMethod = payMethod;
     if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate);
-      if (endDate) where.createdAt.lte = new Date(endDate + 'T23:59:59');
+      baseWhere.createdAt = {};
+      if (startDate) baseWhere.createdAt.gte = new Date(startDate);
+      if (endDate) baseWhere.createdAt.lte = new Date(endDate + 'T23:59:59');
     }
+
+    const where = tenantWhere(user, baseWhere);
 
     const [items, total] = await Promise.all([
       this.prisma.payment.findMany({
@@ -369,7 +371,7 @@ export class SettlementService {
       return { settlementStatus: settlement.status, payments: settlement.payments.map(p => ({ id: p.id, status: p.status, payMethod: p.payMethod })) };
     }
 
-    const result = await this.paymentGatewayService.queryPaymentStatus(onlinePayment.id);
+    const result = await this.paymentGatewayService.queryPaymentStatus(onlinePayment.id, user.tenantId!);
 
     const updatedSettlement = await this.prisma.settlement.findUnique({
       where: { id: settlementId },
@@ -399,7 +401,7 @@ export class SettlementService {
     });
     if (!payment) throw new NotFoundException('支付记录不存在');
 
-    return this.paymentGatewayService.refund(paymentId, data.amount, data.reason, user.sub);
+    return this.paymentGatewayService.refund(paymentId, data.amount, data.reason, user.sub, user.tenantId!);
   }
 
   private async generateSettleNo(tenantId: string, tx: any): Promise<string> {

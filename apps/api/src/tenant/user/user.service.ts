@@ -47,9 +47,9 @@ export class UserService {
     name: string; phone: string; password: string;
     shopId: string; position?: string; roleIds: string[];
   }, user: JwtPayload) {
-    // 检查手机号重复
+    // 检查手机号全局唯一
     const existing = await this.prisma.user.findFirst({
-      where: { tenantId: user.tenantId!, phone: data.phone },
+      where: { phone: data.phone },
     });
     if (existing) throw new ConflictException('手机号已存在');
 
@@ -109,10 +109,10 @@ export class UserService {
   }, user: JwtPayload) {
     const existing = await this.findOne(id, user);
 
-    // 检查手机号重复（排除自己）
+    // 检查手机号全局唯一（排除自己）
     if (data.phone && data.phone !== existing.phone) {
       const dup = await this.prisma.user.findFirst({
-        where: { tenantId: user.tenantId!, phone: data.phone, id: { not: id } },
+        where: { phone: data.phone, id: { not: id } },
       });
       if (dup) throw new ConflictException('手机号已存在');
     }

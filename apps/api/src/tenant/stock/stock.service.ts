@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { JwtPayload } from '@car/shared';
+import { tenantWhere, tenantCreate } from '../../common/utils/tenant-where';
 
 @Injectable()
 export class StockService {
@@ -10,10 +11,12 @@ export class StockService {
   // 库存余额查询
   async getBalances(user: JwtPayload, query: { warehouseId?: string; partId?: string; lowStock?: boolean }) {
     const { warehouseId, partId, lowStock } = query;
-    const where: any = { tenantId: user.tenantId! };
+    const baseWhere: any = {};
 
-    if (warehouseId) where.warehouseId = warehouseId;
-    if (partId) where.partId = partId;
+    if (warehouseId) baseWhere.warehouseId = warehouseId;
+    if (partId) baseWhere.partId = partId;
+
+    const where = tenantWhere(user, baseWhere);
 
     const scope = user.dataScope || 'shop';
     if (!user.isPlatform) {
@@ -53,8 +56,7 @@ export class StockService {
     return this.prisma.$transaction(async (tx) => {
       const billNo = await this.generateBillNo(user.tenantId!, 'IN', tx);
       const bill = await tx.stockBill.create({
-        data: {
-          tenantId: user.tenantId!,
+        data: tenantCreate(user, {
           shopId: data.shopId,
           billNo,
           billType: 'in',
@@ -71,7 +73,7 @@ export class StockService {
               amount: item.quantity * item.unitPrice,
             })),
           },
-        },
+        }),
         include: { items: true },
       });
 
@@ -367,10 +369,12 @@ export class StockService {
   // 库存流水查询
   async getMovements(user: JwtPayload, query: { page?: number; pageSize?: number; partId?: string; movementType?: string }) {
     const { page = 1, pageSize = 20, partId, movementType } = query;
-    const where: any = { tenantId: user.tenantId! };
+    const baseWhere: any = {};
 
-    if (partId) where.partId = partId;
-    if (movementType) where.movementType = movementType;
+    if (partId) baseWhere.partId = partId;
+    if (movementType) baseWhere.movementType = movementType;
+
+    const where = tenantWhere(user, baseWhere);
 
     const scope = user.dataScope || 'shop';
     if (!user.isPlatform) {
@@ -401,10 +405,12 @@ export class StockService {
   // 单据查询
   async getBills(user: JwtPayload, query: { page?: number; pageSize?: number; billType?: string; shopId?: string }) {
     const { page = 1, pageSize = 20, billType, shopId } = query;
-    const where: any = { tenantId: user.tenantId! };
+    const baseWhere: any = {};
 
-    if (billType) where.billType = billType;
-    if (shopId) where.shopId = shopId;
+    if (billType) baseWhere.billType = billType;
+    if (shopId) baseWhere.shopId = shopId;
+
+    const where = tenantWhere(user, baseWhere);
 
     const scope = user.dataScope || 'shop';
     if (!user.isPlatform) {
