@@ -2,6 +2,26 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 
+interface CustomerNameRecord {
+  id: string;
+  name: string;
+}
+
+interface PackageCardReminderRecord {
+  id: string;
+  name: string;
+  customerId: string;
+  endAt: Date;
+  items: Array<{ remainQty: unknown }>;
+}
+
+interface StoredValueCardReminderRecord {
+  id: string;
+  cardNo: string;
+  customerId: string;
+  balance: unknown;
+}
+
 const DEFAULT_THRESHOLDS = {
   maintenance_days: 150,
   card_expiring_days: 14,
@@ -115,7 +135,7 @@ export class ReminderTaskService {
     const expiringBefore = new Date(dueDate);
     expiringBefore.setDate(expiringBefore.getDate() + daysAhead);
 
-    const cards = await this.prisma.packageCard.findMany({
+    const cards = (await this.prisma.packageCard.findMany({
       where: {
         tenantId,
         status: 'active',
@@ -125,16 +145,16 @@ export class ReminderTaskService {
       include: {
         items: { select: { remainQty: true } },
       },
-    });
+    })) as PackageCardReminderRecord[];
 
-    const customerIds = [...new Set(cards.map(c => c.customerId))];
+    const customerIds = [...new Set(cards.map((c: PackageCardReminderRecord) => c.customerId))];
     const customers = customerIds.length
-      ? await this.prisma.customer.findMany({ where: { id: { in: customerIds } }, select: { id: true, name: true } })
+      ? ((await this.prisma.customer.findMany({ where: { id: { in: customerIds } }, select: { id: true, name: true } })) as CustomerNameRecord[])
       : [];
-    const customerMap = new Map(customers.map(c => [c.id, c.name]));
+    const customerMap = new Map(customers.map((c: CustomerNameRecord) => [c.id, c.name]));
 
     for (const card of cards) {
-      const totalRemain = card.items.reduce((sum, item) => sum + Number(item.remainQty), 0);
+      const totalRemain = card.items.reduce((sum: number, item: { remainQty: unknown }) => sum + Number(item.remainQty), 0);
       if (totalRemain <= 0) continue;
 
       const customerName = customerMap.get(card.customerId) || '客户';
@@ -156,7 +176,7 @@ export class ReminderTaskService {
   private async generateCardLowBalance(tenantId: string, dueDate: Date, thresholds: Record<string, number>) {
     const minBalance = thresholds.card_low_balance;
 
-    const cards = await this.prisma.storedValueCard.findMany({
+    const cards = (await this.prisma.storedValueCard.findMany({
       where: {
         tenantId,
         status: 'active',
@@ -168,13 +188,13 @@ export class ReminderTaskService {
         customerId: true,
         balance: true,
       },
-    });
+    })) as StoredValueCardReminderRecord[];
 
-    const customerIds = [...new Set(cards.map(c => c.customerId))];
+    const customerIds = [...new Set(cards.map((c: StoredValueCardReminderRecord) => c.customerId))];
     const customers = customerIds.length
-      ? await this.prisma.customer.findMany({ where: { id: { in: customerIds } }, select: { id: true, name: true } })
+      ? ((await this.prisma.customer.findMany({ where: { id: { in: customerIds } }, select: { id: true, name: true } })) as CustomerNameRecord[])
       : [];
-    const customerMap = new Map(customers.map(c => [c.id, c.name]));
+    const customerMap = new Map(customers.map((c: CustomerNameRecord) => [c.id, c.name]));
 
     for (const card of cards) {
       const customerName = customerMap.get(card.customerId) || '客户';

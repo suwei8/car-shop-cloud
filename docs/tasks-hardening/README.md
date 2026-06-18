@@ -29,6 +29,16 @@
 | TASK-H-019 | 欠款与收款记录数据范围收口 | P0 | ✅ 已关闭 | 补齐结算详情、收款记录、支付状态和退款入口的数据范围过滤 |
 | TASK-H-020 | API build 阻塞审计 | P0 | ✅ 已关闭 | 审计 pnpm build:api 的 129 个历史 TS 严格模式错误并拆分后续修复任务 |
 | TASK-H-021 | Prisma Client 生成门禁补强 | P0 | ✅ 已关闭 | 新增 prisma:generate 并纳入 check:gray-ready，避免 stale client 导致 build 误报 |
+| TASK-H-022 | 认证与开户 JWT payload 类型收口 | P0 | ✅ 已关闭 | 抽取 auth-payload util，统一 roles/permissions 去重、dataScope 推导和 employee audience |
+| TASK-H-023 | Prisma 错误类型导入修复 | P0 | ✅ 已关闭 | 改用 runtime PrismaClientKnownRequestError，恢复全局异常过滤器编译与单测覆盖 |
+| TASK-H-024 | 灰度脚本与开户订阅路径类型补强 | P0 | ✅ 已关闭 | 为登录审计、灰度 seed、微信开户注册和订阅 transaction 补齐最小类型，继续降低 API build 错误数 |
+| TASK-H-025 | 平台租户概览统计类型收口 | P0 | ✅ 已关闭 | 为 tenant-stats 聚合结果补齐最小类型，消除平台概览统计隐式 any build 阻塞 |
+| TASK-H-026 | 平台租户管理类型收口 | P0 | ✅ 已关闭 | 为 platform tenant transaction 和 impersonate JWT payload 复用补齐类型，消除该模块 build 阻塞 |
+| TASK-H-027 | Analytics raw SQL 与聚合结果类型修复 | P0 | ✅ 已关闭 | 改用 runtime raw SQL helper 并收口工单分布聚合结果类型，消除 analytics build 阻塞 |
+| TASK-H-028 | 数据导入 preview/execute 类型收口 | P0 | ✅ 已关闭 | 为客户/车辆查询结果、Set 和导入 transaction 补齐类型，消除 data-import build 阻塞 |
+| TASK-H-029 | 派工 transaction 与任务状态类型收口 | P0 | ✅ 已关闭 | 为派工 create/start/complete transaction 和任务完成判断补齐类型，消除 dispatch build 阻塞 |
+| TASK-H-030 | 打印数据映射类型收口 | P0 | ✅ 已关闭 | 为工单/结算打印 items、inspections、payments 映射补齐类型，消除 print build 阻塞 |
+| TASK-H-031 | 提醒任务与列表映射类型收口 | P0 | ✅ 已关闭 | 为 reminder 任务生成和列表车辆映射补齐类型，消除 reminder build 阻塞 |
 
 ## MiMo 派发约定
 

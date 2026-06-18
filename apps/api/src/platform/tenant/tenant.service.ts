@@ -6,7 +6,9 @@ import { AuditService } from '../../audit/audit.service';
 import { JwtService } from '@nestjs/jwt';
 import { ModuleRef } from '@nestjs/core';
 import { SubscriptionGuard } from '../../common/guards/subscription.guard';
+import { buildEmployeeJwtPayload } from '../../auth/auth-payload.util';
 import { JwtPayload } from '@car/shared';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -66,7 +68,7 @@ export class PlatformTenantService {
     const now = new Date();
     const trialEndAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const tenant = await tx.tenant.create({
         data: {
           ...tenantData,
@@ -193,7 +195,7 @@ export class PlatformTenantService {
     const endAt = new Date(baseDate);
     endAt.setMonth(endAt.getMonth() + months);
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const sub = await tx.tenantSubscription.create({
         data: { tenantId, planId, startAt, endAt, status: 'active' },
       });
@@ -228,7 +230,7 @@ export class PlatformTenantService {
     const newEndAt = new Date(baseDate);
     newEndAt.setDate(newEndAt.getDate() + days);
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.tenant.update({
         where: { id: tenantId },
         data: { subscriptionEndAt: newEndAt },
@@ -335,20 +337,8 @@ export class PlatformTenantService {
 
     if (!adminUser) throw new BadRequestException('该商户没有可用的管理员账号');
 
-    const roles = adminUser.userRoles.map((ur) => ur.role.code);
-    const permissions = adminUser.userRoles.flatMap((ur) =>
-      ur.role.rolePermissions.map((rp) => rp.permission.code),
-    );
-
     const payload: JwtPayload = {
-      sub: adminUser.id,
-      tenantId: adminUser.tenantId,
-      shopId: adminUser.employee?.shopId || null,
-      isPlatform: false,
-      roles: [...new Set(roles)],
-      permissions: [...new Set(permissions)],
-      dataScope: 'all',
-      audience: 'employee',
+      ...buildEmployeeJwtPayload({ ...adminUser, isPlatform: false }, 'all'),
       impersonatedBy: operatorUserId,
     };
 

@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { ArgumentsHost } from '@nestjs/common';
 import { Response } from 'express';
-import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { AllExceptionsFilter } from './http-exception.filter';
 
 describe('AllExceptionsFilter', () => {
@@ -31,7 +31,7 @@ describe('AllExceptionsFilter', () => {
 
   describe('Prisma P2002 — phone unique constraint', () => {
     it('should return phone-specific message when target is ["phone"]', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError(
+      const exception = new PrismaClientKnownRequestError(
         'Unique constraint failed on the fields: (`phone`)',
         { code: 'P2002', clientVersion: '5.20.0', meta: { target: ['phone'] } },
       );
@@ -45,7 +45,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('should return phone-specific message when target is ["tenantId", "phone"]', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError(
+      const exception = new PrismaClientKnownRequestError(
         'Unique constraint failed',
         {
           code: 'P2002',
@@ -63,7 +63,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('should return phone-specific message when target is "users_phone_key"', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError(
+      const exception = new PrismaClientKnownRequestError(
         'Unique constraint failed',
         {
           code: 'P2002',
@@ -81,7 +81,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('should return generic message for non-phone unique constraint', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError(
+      const exception = new PrismaClientKnownRequestError(
         'Unique constraint failed on the fields: (`email`)',
         { code: 'P2002', clientVersion: '5.20.0', meta: { target: ['email'] } },
       );
@@ -95,7 +95,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('should return part-code message when target is "parts_tenantId_code_key"', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError(
+      const exception = new PrismaClientKnownRequestError(
         'Unique constraint failed',
         {
           code: 'P2002',
@@ -113,7 +113,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('should return card-no message when target is "stored_value_cards_tenantId_cardNo_key"', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError(
+      const exception = new PrismaClientKnownRequestError(
         'Unique constraint failed',
         {
           code: 'P2002',
@@ -131,7 +131,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('should return card-no message when target is ["tenantId", "cardNo"]', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError(
+      const exception = new PrismaClientKnownRequestError(
         'Unique constraint failed',
         {
           code: 'P2002',
@@ -149,7 +149,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('should return card-no message when target is "package_cards_tenantId_cardNo_key"', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError(
+      const exception = new PrismaClientKnownRequestError(
         'Unique constraint failed',
         {
           code: 'P2002',
@@ -167,7 +167,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('should return generic message for non-user phone-like target', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError(
+      const exception = new PrismaClientKnownRequestError(
         'Unique constraint failed on the constraint: `customers_phone_key`',
         { code: 'P2002', clientVersion: '5.20.0', meta: { target: 'customers_phone_key' } },
       );
@@ -181,7 +181,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('should return generic message for roles_tenantId_code_key', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError(
+      const exception = new PrismaClientKnownRequestError(
         'Unique constraint failed',
         {
           code: 'P2002',
@@ -199,7 +199,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('should return generic message when target is missing', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError(
+      const exception = new PrismaClientKnownRequestError(
         'Unique constraint failed',
         { code: 'P2002', clientVersion: '5.20.0', meta: {} },
       );
@@ -215,7 +215,7 @@ describe('AllExceptionsFilter', () => {
 
   describe('Prisma P2025 — record not found', () => {
     it('should return record-not-found message', () => {
-      const exception = new Prisma.PrismaClientKnownRequestError(
+      const exception = new PrismaClientKnownRequestError(
         'Record to update not found',
         { code: 'P2025', clientVersion: '5.20.0', meta: {} },
       );

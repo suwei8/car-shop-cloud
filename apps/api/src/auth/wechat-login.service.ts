@@ -7,6 +7,7 @@ import { TenantInitializerService } from '../platform/tenant/tenant-initializer.
 import { NotificationService } from '../notification/notification.service';
 import { randomUUID } from 'crypto';
 import { JwtPayload } from '@car/shared';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 interface WechatSessionResult {
@@ -136,7 +137,7 @@ export class WechatLoginService {
     const trialEndAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
     const passwordHash = await bcrypt.hash(randomUUID(), 10);
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 5. 创建租户
       const tenant = await tx.tenant.create({
         data: {

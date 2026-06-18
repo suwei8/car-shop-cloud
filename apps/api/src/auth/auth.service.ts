@@ -8,17 +8,9 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
-import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
-
-const ALL_SCOPE_ROLES = ['tenant_admin', 'shop_manager'];
-
-function inferDataScope(roles: string[]): 'self' | 'shop' | 'all' {
-  if (roles.some(r => ALL_SCOPE_ROLES.includes(r))) {
-    return 'all';
-  }
-  return 'shop';
-}
+import { PrismaService } from '../prisma/prisma.service';
+import { buildEmployeeJwtPayload, extractAuthClaims } from './auth-payload.util';
 
 @Injectable()
 export class AuthService {
@@ -71,21 +63,7 @@ export class AuthService {
       }
     }
 
-    const roles = user.userRoles.map((ur) => ur.role.code);
-    const permissions = user.userRoles.flatMap((ur) =>
-      ur.role.rolePermissions.map((rp) => rp.permission.code),
-    );
-
-    const payload: JwtPayload = {
-      sub: user.id,
-      tenantId: user.tenantId,
-      shopId: user.employee?.shopId || null,
-      isPlatform: user.isPlatform,
-      roles: [...new Set(roles)],
-      permissions: [...new Set(permissions)],
-      dataScope: user.isPlatform ? undefined : inferDataScope([...new Set(roles)]),
-      audience: 'employee',
-    };
+    const payload = buildEmployeeJwtPayload(user);
 
     const tokens = await this.generateTokens(payload);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
@@ -172,21 +150,7 @@ export class AuthService {
     }
 
     const user = tokenRecord.user;
-    const roles = user.userRoles.map((ur) => ur.role.code);
-    const permissions = user.userRoles.flatMap((ur) =>
-      ur.role.rolePermissions.map((rp) => rp.permission.code),
-    );
-
-    const payload: JwtPayload = {
-      sub: user.id,
-      tenantId: user.tenantId,
-      shopId: user.employee?.shopId || null,
-      isPlatform: user.isPlatform,
-      roles: [...new Set(roles)],
-      permissions: [...new Set(permissions)],
-      dataScope: user.isPlatform ? undefined : inferDataScope([...new Set(roles)]),
-      audience: 'employee',
-    };
+    const payload = buildEmployeeJwtPayload(user);
 
     const tokens = await this.generateTokens(payload);
 
@@ -228,10 +192,7 @@ export class AuthService {
       throw new UnauthorizedException('用户不存在或已被禁用');
     }
 
-    const roles = user.userRoles.map((ur) => ur.role.code);
-    const permissions = user.userRoles.flatMap((ur) =>
-      ur.role.rolePermissions.map((rp) => rp.permission.code),
-    );
+    const claims = extractAuthClaims(user.userRoles);
 
     return {
       id: user.id,
@@ -240,8 +201,8 @@ export class AuthService {
       isPlatform: user.isPlatform,
       tenantId: user.tenantId,
       shopId: user.employee?.shopId || null,
-      roles: [...new Set(roles)],
-      permissions: [...new Set(permissions)],
+      roles: claims.roles,
+      permissions: claims.permissions,
     };
   }
 

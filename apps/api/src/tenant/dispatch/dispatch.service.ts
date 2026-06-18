@@ -1,6 +1,12 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
+import { Prisma } from '@prisma/client';
+
+interface DispatchTaskStatusRecord {
+  id: string;
+  status: string;
+}
 
 @Injectable()
 export class DispatchService {
@@ -72,7 +78,7 @@ export class DispatchService {
       throw new ForbiddenException('当前工单状态不允许派工');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const task = await tx.dispatchTask.create({
         data: {
           tenantId: user.tenantId!,
@@ -99,7 +105,7 @@ export class DispatchService {
     const task = await this.findOne(id, user);
     if (task.status !== 'pending') throw new ForbiddenException('只能开始待处理的任务');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.workOrder.update({
         where: { id: task.workOrderId, tenantId: user.tenantId! },
         data: { status: 'in_progress' },
@@ -128,10 +134,11 @@ export class DispatchService {
       throw new ForbiddenException('只能完成进行中或已暂停的任务');
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      const allTasks = await tx.dispatchTask.findMany({
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const allTasks = (await tx.dispatchTask.findMany({
         where: { workOrderId: task.workOrderId, tenantId: user.tenantId! },
-      });
+        select: { id: true, status: true },
+      })) as DispatchTaskStatusRecord[];
 
       const updatedTask = await tx.dispatchTask.update({
         where: { id, tenantId: user.tenantId! },
