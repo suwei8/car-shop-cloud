@@ -61,6 +61,9 @@ fi
 run_required "Git whitespace check" \
   git diff --check
 
+run_required "Prisma client generation" \
+  pnpm prisma:generate
+
 run_required "Prisma schema validation" \
   bash -c 'DATABASE_URL="${DATABASE_URL:-postgresql://user:pass@localhost:5432/db}" pnpm --filter @car/api exec prisma validate'
 
