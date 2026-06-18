@@ -44,7 +44,7 @@ export class SettlementService {
 
   async findOne(id: string, user: JwtPayload) {
     const settlement = await this.prisma.settlement.findFirst({
-      where: { id, tenantId: user.tenantId! },
+      where: applyDataScope(user, { id, tenantId: user.tenantId! }, 'shopId', 'operatorId'),
       include: { payments: true },
     });
     if (!settlement) throw new NotFoundException('结算单不存在');
@@ -59,7 +59,12 @@ export class SettlementService {
     couponClaimId?: string;
   }, user: JwtPayload) {
     const workOrder = await this.prisma.workOrder.findFirst({
-      where: { id: data.workOrderId, tenantId: user.tenantId! },
+      where: applyDataScope(
+        user,
+        { id: data.workOrderId, tenantId: user.tenantId! },
+        'shopId',
+        'advisorId',
+      ),
       include: { items: true },
     });
     if (!workOrder) throw new NotFoundException('工单不存在');
@@ -74,7 +79,7 @@ export class SettlementService {
     if (data.packageRedemptions?.length) {
       for (const r of data.packageRedemptions) {
         const matchedItem = workOrder.items.find(
-          i => i.serviceItemId === r.serviceItemId && i.itemType !== 'part',
+          (i: any) => i.serviceItemId === r.serviceItemId && i.itemType !== 'part',
         );
         if (!matchedItem) throw new ForbiddenException(`工单中未找到匹配的服务项目`);
         packageDeductAmount += Number(matchedItem.amount);
@@ -88,7 +93,7 @@ export class SettlementService {
     const onlineMethods = ['wechat', 'alipay'];
     const hasOnlinePayment = data.payments.some(p => onlineMethods.includes(p.payMethod));
 
-    const settlement = await this.prisma.$transaction(async (tx) => {
+    const settlement = await this.prisma.$transaction(async (tx: any) => {
       if (data.packageRedemptions?.length) {
         for (const r of data.packageRedemptions) {
           await this.packageCardService.redeem(
@@ -207,7 +212,7 @@ export class SettlementService {
     let paymentId: string | undefined;
 
     if (hasOnlinePayment) {
-      const onlinePayment = settlement.payments.find(p => onlineMethods.includes(p.payMethod));
+      const onlinePayment = settlement.payments.find((p: any) => onlineMethods.includes(p.payMethod));
       if (onlinePayment) {
         try {
           const result = await this.paymentGatewayService.createPaymentOrder(
@@ -231,7 +236,7 @@ export class SettlementService {
     const settlement = await this.findOne(settlementId, user);
     if (settlement.status !== 'settled') throw new ForbiddenException('只能反结算已结算的单据');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: any) => {
       const packageTransactions = await tx.packageCardTransaction.findMany({
         where: {
           tenantId: user.tenantId!,
@@ -341,6 +346,9 @@ export class SettlementService {
     }
 
     const where = tenantWhere(user, baseWhere);
+    if (!user.isPlatform && (user.dataScope || 'shop') !== 'all') {
+      where.settlement = { is: applyDataScope(user, { tenantId: user.tenantId! }, 'shopId', 'operatorId') };
+    }
 
     const [items, total] = await Promise.all([
       this.prisma.payment.findMany({
@@ -358,17 +366,17 @@ export class SettlementService {
 
   async getPaymentStatus(settlementId: string, user: JwtPayload) {
     const settlement = await this.prisma.settlement.findFirst({
-      where: { id: settlementId, tenantId: user.tenantId! },
+      where: applyDataScope(user, { id: settlementId, tenantId: user.tenantId! }, 'shopId', 'operatorId'),
       include: { payments: true },
     });
     if (!settlement) throw new NotFoundException('结算单不存在');
 
     const onlinePayment = settlement.payments.find(
-      p => ['wechat', 'alipay'].includes(p.payMethod),
+      (p: any) => ['wechat', 'alipay'].includes(p.payMethod),
     );
 
     if (!onlinePayment) {
-      return { settlementStatus: settlement.status, payments: settlement.payments.map(p => ({ id: p.id, status: p.status, payMethod: p.payMethod })) };
+      return { settlementStatus: settlement.status, payments: settlement.payments.map((p: any) => ({ id: p.id, status: p.status, payMethod: p.payMethod })) };
     }
 
     const result = await this.paymentGatewayService.queryPaymentStatus(onlinePayment.id, user.tenantId!);
@@ -380,7 +388,7 @@ export class SettlementService {
 
     return {
       settlementStatus: updatedSettlement?.status || settlement.status,
-      payments: (updatedSettlement?.payments || settlement.payments).map(p => ({
+      payments: (updatedSettlement?.payments || settlement.payments).map((p: any) => ({
         id: p.id,
         status: p.status,
         payMethod: p.payMethod,
@@ -392,7 +400,7 @@ export class SettlementService {
 
   async refundPayment(settlementId: string, paymentId: string, data: { amount: number; reason: string }, user: JwtPayload) {
     const settlement = await this.prisma.settlement.findFirst({
-      where: { id: settlementId, tenantId: user.tenantId! },
+      where: applyDataScope(user, { id: settlementId, tenantId: user.tenantId! }, 'shopId', 'operatorId'),
     });
     if (!settlement) throw new NotFoundException('结算单不存在');
 

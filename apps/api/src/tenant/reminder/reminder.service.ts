@@ -3,6 +3,16 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
 import { applyDataScope } from '../../common/utils/scope-where';
 
+interface ReminderListRecord {
+  vehicleId: string | null;
+  [key: string]: unknown;
+}
+
+interface VehiclePlateRecord {
+  id: string;
+  plateNo: string;
+}
+
 @Injectable()
 export class ReminderService {
   constructor(private prisma: PrismaService) {}
@@ -39,20 +49,21 @@ export class ReminderService {
       }),
     ]);
 
-    const vehicleIds = items.map(r => r.vehicleId).filter(Boolean) as string[];
+    const typedItems = items as ReminderListRecord[];
+    const vehicleIds = typedItems.map((r: ReminderListRecord) => r.vehicleId).filter(Boolean) as string[];
     const vehicles = vehicleIds.length
-      ? await this.prisma.vehicle.findMany({
+      ? ((await this.prisma.vehicle.findMany({
           where: { id: { in: vehicleIds } },
           select: { id: true, plateNo: true },
-        })
+        })) as VehiclePlateRecord[])
       : [];
-    const vehicleMap = new Map(vehicles.map(v => [v.id, v.plateNo]));
+    const vehicleMap = new Map(vehicles.map((v: VehiclePlateRecord) => [v.id, v.plateNo]));
 
     return {
       total,
       page,
       pageSize,
-      items: items.map(r => ({
+      items: typedItems.map((r: ReminderListRecord) => ({
         ...r,
         vehiclePlateNo: r.vehicleId ? vehicleMap.get(r.vehicleId) || null : null,
       })),

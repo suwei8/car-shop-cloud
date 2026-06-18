@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class SubscriptionPlanService {
@@ -35,7 +36,7 @@ export class SubscriptionPlanService {
     const endAt = new Date();
     endAt.setMonth(endAt.getMonth() + months);
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const sub = await tx.tenantSubscription.create({
         data: { tenantId, planId, startAt, endAt, status: 'active' },
       });

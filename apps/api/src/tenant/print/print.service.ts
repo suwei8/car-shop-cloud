@@ -2,6 +2,28 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
 
+interface PrintableWorkOrderItem {
+  name: string;
+  itemType?: string | null;
+  quantity: unknown;
+  unit?: string | null;
+  unitPrice: unknown;
+  amount: unknown;
+}
+
+interface PrintableInspection {
+  category: string;
+  item: string;
+  condition: string;
+  note?: string | null;
+}
+
+interface PrintablePayment {
+  payMethod: string;
+  amount: unknown;
+  referenceNo?: string | null;
+}
+
 @Injectable()
 export class PrintService {
   constructor(private prisma: PrismaService) {}
@@ -50,7 +72,7 @@ export class PrintService {
         vin: order.vehicle.vin,
         color: order.vehicle.color,
       },
-      items: order.items.map(item => ({
+      items: order.items.map((item: PrintableWorkOrderItem) => ({
         name: item.name,
         itemType: item.itemType,
         quantity: Number(item.quantity),
@@ -58,7 +80,7 @@ export class PrintService {
         unitPrice: Number(item.unitPrice),
         amount: Number(item.amount),
       })),
-      inspections: order.inspections.map(insp => ({
+      inspections: order.inspections.map((insp: PrintableInspection) => ({
         category: insp.category,
         item: insp.item,
         condition: insp.condition,
@@ -123,13 +145,13 @@ export class PrintService {
         brand: workOrder.vehicle.brand,
         model: workOrder.vehicle.model,
       } : null,
-      items: workOrder?.items.map(item => ({
+      items: workOrder?.items.map((item: PrintableWorkOrderItem) => ({
         name: item.name,
         quantity: Number(item.quantity),
         unitPrice: Number(item.unitPrice),
         amount: Number(item.amount),
       })) || [],
-      payments: settlement.payments.map(p => ({
+      payments: settlement.payments.map((p: PrintablePayment) => ({
         method: payMethodMap[p.payMethod] || p.payMethod,
         amount: Number(p.amount),
         referenceNo: p.referenceNo,

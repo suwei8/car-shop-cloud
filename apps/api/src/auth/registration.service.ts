@@ -8,6 +8,8 @@ import { NotificationService } from '../notification/notification.service';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { JwtPayload } from '@car/shared';
+import { Prisma } from '@prisma/client';
+import { buildEmployeeJwtPayload } from './auth-payload.util';
 
 @Injectable()
 export class RegistrationService {
@@ -76,7 +78,7 @@ export class RegistrationService {
     const now = new Date();
     const trialEndAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Create tenant
       const tenant = await tx.tenant.create({
         data: {
@@ -160,20 +162,7 @@ export class RegistrationService {
       throw new BadRequestException('注册失败，用户创建异常');
     }
 
-    const roles = user.userRoles.map((ur) => ur.role.code);
-    const permissions = user.userRoles.flatMap((ur) =>
-      ur.role.rolePermissions.map((rp) => rp.permission.code),
-    );
-
-    const payload: JwtPayload = {
-      sub: user.id,
-      tenantId: user.tenantId,
-      shopId: user.employee?.shopId || null,
-      isPlatform: false,
-      roles: [...new Set(roles)],
-      permissions: [...new Set(permissions)],
-      dataScope: 'all',
-    };
+    const payload = buildEmployeeJwtPayload({ ...user, isPlatform: false }, 'all');
 
     const tokens = await this.generateTokens(payload);
     await this.saveRefreshToken(user.id, tokens.refreshToken);

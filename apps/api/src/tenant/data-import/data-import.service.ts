@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
+import { Prisma } from '@prisma/client';
 const ExcelJS = require('exceljs');
 
 const AMOUNT_RE = /^(0|[1-9]\d*)(\.\d{1,2})?$/;
@@ -29,6 +30,19 @@ export interface PreviewRow {
   data: Record<string, string>;
   errors?: string[];
   status?: 'valid' | 'error' | 'skip';
+}
+
+interface CustomerPhoneRecord {
+  phone: string;
+}
+
+interface VehiclePlateRecord {
+  plateNo: string;
+}
+
+interface CustomerIdPhoneRecord {
+  id: string;
+  phone: string;
 }
 
 @Injectable()
@@ -126,19 +140,17 @@ export class DataImportService {
       throw new BadRequestException(`总行数 ${totalRows} 超过上限5000，请分批导入`);
     }
 
-    const existingPhones = new Set(
-      (await this.prisma.customer.findMany({
-        where: { tenantId: user.tenantId!, status: 'active' },
-        select: { phone: true },
-      })).map((c: any) => c.phone),
-    );
+    const activeCustomers = (await this.prisma.customer.findMany({
+      where: { tenantId: user.tenantId!, status: 'active' },
+      select: { phone: true },
+    })) as CustomerPhoneRecord[];
+    const existingPhones = new Set<string>(activeCustomers.map((c) => c.phone));
 
-    const existingPlates = new Set(
-      (await this.prisma.vehicle.findMany({
-        where: { tenantId: user.tenantId!, status: 'active' },
-        select: { plateNo: true },
-      })).map((v: any) => v.plateNo.toUpperCase()),
-    );
+    const activeVehicles = (await this.prisma.vehicle.findMany({
+      where: { tenantId: user.tenantId!, status: 'active' },
+      select: { plateNo: true },
+    })) as VehiclePlateRecord[];
+    const existingPlates = new Set<string>(activeVehicles.map((v) => v.plateNo.toUpperCase()));
 
     const customerResult = this.parseCustomerSheet(customersSheet, existingPhones);
     const vehicleResult = this.parseVehicleSheet(vehiclesSheet, existingPhones, existingPlates, customerResult.valid);
@@ -329,7 +341,7 @@ export class DataImportService {
       throw new BadRequestException('没有需要导入的有效数据');
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       let customersCreated = 0;
       let vehiclesCreated = 0;
       let cardsCreated = 0;
@@ -359,10 +371,10 @@ export class DataImportService {
       }
 
       // 查询已存在的客户
-      const existingCustomers = await tx.customer.findMany({
+      const existingCustomers = (await tx.customer.findMany({
         where: { tenantId: user.tenantId! },
         select: { id: true, phone: true },
-      });
+      })) as CustomerIdPhoneRecord[];
       for (const c of existingCustomers) {
         if (!phoneToIdMap.has(c.phone)) {
           phoneToIdMap.set(c.phone, c.id);

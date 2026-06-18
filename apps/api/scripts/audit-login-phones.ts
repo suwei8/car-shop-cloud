@@ -127,7 +127,7 @@ async function main() {
   const prisma = new PrismaClient();
 
   try {
-    const allUsers = await prisma.user.findMany({
+    const allUsers = (await prisma.user.findMany({
       select: {
         id: true,
         tenantId: true,
@@ -142,7 +142,7 @@ async function main() {
         },
       },
       orderBy: { createdAt: 'asc' },
-    });
+    })) as UserRecord[];
 
     const totalUsers = allUsers.length;
 
