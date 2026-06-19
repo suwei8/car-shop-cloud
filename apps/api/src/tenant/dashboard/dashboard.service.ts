@@ -19,6 +19,48 @@ export class DashboardService {
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(endOfDay.getDate() + 1);
 
+    const todayWorkOrderWhere = applyDataScope(
+      user,
+      { tenantId, createdAt: { gte: startOfDay, lt: endOfDay } },
+      'shopId',
+      'advisorId',
+    );
+    const inProgressWorkOrderWhere = applyDataScope(
+      user,
+      { tenantId, status: 'in_progress' },
+      'shopId',
+      'advisorId',
+    );
+    const appointmentWhere = applyDataScope(
+      user,
+      { tenantId, appointTime: { gte: startOfDay, lt: endOfDay }, status: { notIn: ['cancelled'] } },
+      'shopId',
+    );
+    const settlementWhere = applyDataScope(user, { tenantId, debtAmount: { gt: 0 } }, 'shopId', 'operatorId');
+    const reminderWhere = applyDataScope(
+      user,
+      { tenantId, status: 'pending', dueDate: { gte: startOfDay, lt: endOfDay } },
+      'shopId',
+      'handledBy',
+    );
+    const dispatchTaskWhere: Record<string, any> = { tenantId, status: 'pending' };
+    if (!user.isPlatform && (user.dataScope || 'shop') === 'shop' && user.shopId) {
+      dispatchTaskWhere.workOrder = { shopId: user.shopId };
+    } else if (!user.isPlatform && user.dataScope === 'self') {
+      dispatchTaskWhere.technicianId = user.sub;
+    }
+    const stockBalanceWhere: Record<string, any> = {
+      tenantId,
+      part: { status: 'active', minStock: { gt: 0 } },
+    };
+    if (!user.isPlatform && (user.dataScope || 'shop') === 'shop' && user.shopId) {
+      stockBalanceWhere.warehouse = { shopId: user.shopId };
+    }
+    const todayPaymentWhere: Record<string, any> = { tenantId, createdAt: { gte: startOfDay, lt: endOfDay } };
+    if (!user.isPlatform && (user.dataScope || 'shop') !== 'all') {
+      todayPaymentWhere.settlement = { is: applyDataScope(user, { tenantId }, 'shopId', 'operatorId') };
+    }
+
     const [
       todayOrders,
       todayRevenue,
@@ -29,31 +71,21 @@ export class DashboardService {
       pendingReminders,
       debtAgg,
     ] = await Promise.all([
-      this.prisma.workOrder.count({
-        where: { tenantId, createdAt: { gte: startOfDay, lt: endOfDay } },
-      }),
+      this.prisma.workOrder.count({ where: todayWorkOrderWhere }),
       this.prisma.payment.aggregate({
-        where: { tenantId, createdAt: { gte: startOfDay, lt: endOfDay } },
+        where: todayPaymentWhere,
         _sum: { amount: true },
       }),
-      this.prisma.workOrder.count({
-        where: { tenantId, status: 'in_progress' },
-      }),
-      this.prisma.appointment.count({
-        where: { tenantId, appointTime: { gte: startOfDay, lt: endOfDay }, status: { notIn: ['cancelled'] } },
-      }),
-      this.prisma.dispatchTask.count({
-        where: { tenantId, status: 'pending' },
-      }),
+      this.prisma.workOrder.count({ where: inProgressWorkOrderWhere }),
+      this.prisma.appointment.count({ where: appointmentWhere }),
+      this.prisma.dispatchTask.count({ where: dispatchTaskWhere }),
       this.prisma.stockBalance.findMany({
-        where: { tenantId, part: { status: 'active', minStock: { gt: 0 } } },
+        where: stockBalanceWhere,
         include: { part: { select: { minStock: true } } },
       }),
-      this.prisma.reminder.count({
-        where: { tenantId, status: 'pending', dueDate: { gte: startOfDay, lt: endOfDay } },
-      }),
+      this.prisma.reminder.count({ where: reminderWhere }),
       this.prisma.settlement.aggregate({
-        where: applyDataScope(user, { tenantId, debtAmount: { gt: 0 } }, 'shopId', 'operatorId'),
+        where: settlementWhere,
         _sum: { debtAmount: true },
         _count: { id: true },
       }),
@@ -79,7 +111,7 @@ export class DashboardService {
       return [];
     }
     return this.prisma.workOrder.findMany({
-      where: { tenantId: user.tenantId! },
+      where: applyDataScope(user, { tenantId: user.tenantId! }, 'shopId', 'advisorId'),
       orderBy: { createdAt: 'desc' },
       take: limit,
       include: {
@@ -99,11 +131,15 @@ export class DashboardService {
     endOfDay.setDate(endOfDay.getDate() + 1);
 
     return this.prisma.appointment.findMany({
-      where: {
-        tenantId: user.tenantId!,
-        appointTime: { gte: startOfDay, lt: endOfDay },
-        status: { notIn: ['cancelled'] },
-      },
+      where: applyDataScope(
+        user,
+        {
+          tenantId: user.tenantId!,
+          appointTime: { gte: startOfDay, lt: endOfDay },
+          status: { notIn: ['cancelled'] },
+        },
+        'shopId',
+      ),
       orderBy: { appointTime: 'asc' },
       include: {
         customer: { select: { name: true, phone: true } },

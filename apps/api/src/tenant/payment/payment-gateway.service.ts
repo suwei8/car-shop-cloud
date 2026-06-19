@@ -169,7 +169,7 @@ export class PaymentGatewayService {
 
     if (settlement && settlement.status === 'pending_payment') {
       const allPaid = settlement.payments.every(
-        (p) => p.id === payment.id || p.status === 'paid',
+        (p: any) => p.id === payment.id || p.status === 'paid',
       );
       if (allPaid) {
         await this.prisma.settlement.update({
@@ -227,7 +227,7 @@ export class PaymentGatewayService {
               : null;
             if (settlement && settlement.status === 'pending_payment') {
               const allPaid = settlement.payments.every(
-                (p) => p.id === paymentId || p.status === 'paid',
+                (p: any) => p.id === paymentId || p.status === 'paid',
               );
               if (allPaid) {
                 await this.prisma.settlement.update({

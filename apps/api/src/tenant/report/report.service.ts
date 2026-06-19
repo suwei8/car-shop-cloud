@@ -3,6 +3,84 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
 import * as ExcelJS from 'exceljs';
 
+interface CountById {
+  id: number;
+}
+
+interface DailyOrderGroup {
+  status: string;
+  _count: CountById;
+  _sum: { totalAmount: unknown };
+}
+
+interface DailyPaymentGroup {
+  payMethod: string;
+  _count: CountById;
+  _sum: { amount: unknown };
+}
+
+interface TechnicianRecord {
+  id: string;
+  name: string;
+}
+
+interface DispatchTaskStatusRecord {
+  status: string;
+}
+
+interface AmountRecord {
+  amount: unknown;
+}
+
+interface LowStockPartRecord {
+  id: string;
+  code: string;
+  name: string;
+  category?: string | null;
+  unit?: string | null;
+  minStock: number;
+  stockBalances: Array<{ quantity: unknown }>;
+}
+
+interface LowStockAlertItem {
+  id: string;
+  code: string;
+  name: string;
+  category?: string | null;
+  unit?: string | null;
+  minStock: number;
+  currentStock: number;
+}
+
+interface TopCustomerGroup {
+  customerId: string;
+  _count: CountById;
+  _sum: { totalAmount: unknown };
+}
+
+interface CustomerContactRecord {
+  id: string;
+  name: string;
+  phone: string;
+}
+
+interface StoredValueCardReportRecord {
+  cardNo: string;
+  customerId: string;
+  balance: unknown;
+  principalBalance: unknown;
+  giftBalance: unknown;
+}
+
+interface PackageCardTransactionReportRecord {
+  cardId: string;
+  itemId: string;
+  quantity: unknown;
+  relatedType?: string | null;
+  relatedId?: string | null;
+  createdAt: Date;
+}
+
 @Injectable()
 export class ReportService {
   constructor(private prisma: PrismaService) {}
@@ -46,18 +124,18 @@ export class ReportService {
 
     return {
       period: { startDate, endDate },
-      orders: orders.map(o => ({
+      orders: (orders as DailyOrderGroup[]).map((o: DailyOrderGroup) => ({
         status: o.status,
         count: o._count.id,
         amount: Number(o._sum.totalAmount || 0),
       })),
-      payments: payments.map(p => ({
+      payments: (payments as DailyPaymentGroup[]).map((p: DailyPaymentGroup) => ({
         method: p.payMethod,
         count: p._count.id,
         amount: Number(p._sum.amount || 0),
       })),
       summary: {
-        totalOrders: orders.reduce((sum, o) => sum + o._count.id, 0),
+        totalOrders: (orders as DailyOrderGroup[]).reduce((sum: number, o: DailyOrderGroup) => sum + o._count.id, 0),
         totalRevenue: Number(settlements._sum.totalAmount || 0),
         totalDiscount: Number(settlements._sum.discountAmount || 0),
         totalPaid: Number(settlements._sum.paidAmount || 0),
@@ -85,7 +163,7 @@ export class ReportService {
     });
 
     const results = [];
-    for (const tech of technicians) {
+    for (const tech of technicians as TechnicianRecord[]) {
       const [tasks, orderItems] = await Promise.all([
         this.prisma.dispatchTask.findMany({
           where: {
@@ -103,8 +181,8 @@ export class ReportService {
         }),
       ]);
 
-      const completedTasks = tasks.filter(t => t.status === 'completed');
-      const totalAmount = orderItems.reduce((sum, item) => sum + Number(item.amount), 0);
+      const completedTasks = (tasks as DispatchTaskStatusRecord[]).filter((t: DispatchTaskStatusRecord) => t.status === 'completed');
+      const totalAmount = (orderItems as AmountRecord[]).reduce((sum: number, item: AmountRecord) => sum + Number(item.amount), 0);
 
       results.push({
         technicianId: tech.id,
@@ -136,9 +214,9 @@ export class ReportService {
       },
     });
 
-    const lowStockItems = parts
-      .map(p => {
-        const currentStock = p.stockBalances.reduce((sum, b) => sum + Number(b.quantity), 0);
+    const lowStockItems = (parts as LowStockPartRecord[])
+      .map((p: LowStockPartRecord) => {
+        const currentStock = p.stockBalances.reduce((sum: number, b: { quantity: unknown }) => sum + Number(b.quantity), 0);
         return {
           id: p.id,
           code: p.code,
@@ -149,8 +227,8 @@ export class ReportService {
           currentStock,
         };
       })
-      .filter(p => p.currentStock <= p.minStock)
-      .sort((a, b) => (a.minStock > 0 ? a.currentStock / a.minStock : 0) - (b.minStock > 0 ? b.currentStock / b.minStock : 0));
+      .filter((p: LowStockAlertItem) => p.currentStock <= p.minStock)
+      .sort((a: LowStockAlertItem, b: LowStockAlertItem) => (a.minStock > 0 ? a.currentStock / a.minStock : 0) - (b.minStock > 0 ? b.currentStock / b.minStock : 0));
 
     return lowStockItems;
   }
@@ -180,14 +258,15 @@ export class ReportService {
       }),
     ]);
 
-    const topCustomerIds = topCustomers.map(c => c.customerId);
-    const customers = await this.prisma.customer.findMany({
+    const typedTopCustomers = topCustomers as TopCustomerGroup[];
+    const topCustomerIds = typedTopCustomers.map((c: TopCustomerGroup) => c.customerId);
+    const customers = (await this.prisma.customer.findMany({
       where: { id: { in: topCustomerIds } },
       select: { id: true, name: true, phone: true },
-    });
+    })) as CustomerContactRecord[];
 
-    const topCustomerList = topCustomers.map(tc => {
-      const customer = customers.find(c => c.id === tc.customerId);
+    const topCustomerList = typedTopCustomers.map((tc: TopCustomerGroup) => {
+      const customer = customers.find((c: CustomerContactRecord) => c.id === tc.customerId);
       return {
         ...customer,
         orderCount: tc._count.id,
@@ -206,14 +285,14 @@ export class ReportService {
   async getStoredValueReport(user: JwtPayload) {
     const tenantId = user.tenantId!;
 
-    const cards = await this.prisma.storedValueCard.findMany({
+    const cards = (await this.prisma.storedValueCard.findMany({
       where: { tenantId, status: 'active' },
       orderBy: { balance: 'desc' },
-    });
+    })) as StoredValueCardReportRecord[];
 
-    const totalBalance = cards.reduce((sum, c) => sum + Number(c.balance), 0);
-    const totalPrincipal = cards.reduce((sum, c) => sum + Number(c.principalBalance), 0);
-    const totalGift = cards.reduce((sum, c) => sum + Number(c.giftBalance), 0);
+    const totalBalance = cards.reduce((sum: number, c: StoredValueCardReportRecord) => sum + Number(c.balance), 0);
+    const totalPrincipal = cards.reduce((sum: number, c: StoredValueCardReportRecord) => sum + Number(c.principalBalance), 0);
+    const totalGift = cards.reduce((sum: number, c: StoredValueCardReportRecord) => sum + Number(c.giftBalance), 0);
 
     return {
       summary: {
@@ -222,7 +301,7 @@ export class ReportService {
         totalPrincipal,
         totalGift,
       },
-      cards: cards.map(c => ({
+      cards: cards.map((c: StoredValueCardReportRecord) => ({
         cardNo: c.cardNo,
         customerId: c.customerId,
         balance: Number(c.balance),
@@ -240,16 +319,16 @@ export class ReportService {
     const end = new Date(endDate);
     end.setDate(end.getDate() + 1);
 
-    const transactions = await this.prisma.packageCardTransaction.findMany({
+    const transactions = (await this.prisma.packageCardTransaction.findMany({
       where: {
         tenantId,
         type: 'consume',
         createdAt: { gte: start, lt: end },
       },
       orderBy: { createdAt: 'desc' },
-    });
+    })) as PackageCardTransactionReportRecord[];
 
-    const totalConsumed = transactions.reduce((sum, t) => sum + Number(t.quantity), 0);
+    const totalConsumed = transactions.reduce((sum: number, t: PackageCardTransactionReportRecord) => sum + Number(t.quantity), 0);
 
     return {
       period: { startDate, endDate },
@@ -257,7 +336,7 @@ export class ReportService {
         totalTransactions: transactions.length,
         totalConsumed,
       },
-      transactions: transactions.map(t => ({
+      transactions: transactions.map((t: PackageCardTransactionReportRecord) => ({
         cardId: t.cardId,
         itemId: t.itemId,
         quantity: Number(t.quantity),

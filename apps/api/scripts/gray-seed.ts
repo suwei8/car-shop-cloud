@@ -37,6 +37,11 @@ const PLAN_ID = 'plan-trial';
 const FEATURE_FLAG_ID = 'flag-simple-mode';
 const TRIAL_DAYS = 30;
 
+interface PermissionRecord {
+  id: string;
+  code: string;
+}
+
 const BUILT_IN_ROLES: Record<string, { name: string; perms: string[] }> = {
   tenant_admin: {
     name: '商户管理员',
@@ -328,7 +333,7 @@ async function main() {
 
     // ── 8. Ensure roles + permissions ──
     log('\nStep 8: Ensuring built-in roles and permissions...');
-    const allPermissions = await prisma.permission.findMany();
+    const allPermissions = (await prisma.permission.findMany()) as PermissionRecord[];
     const permMap = new Map(allPermissions.map((p) => [p.code, p.id]));
 
     let rolesCreated = 0;

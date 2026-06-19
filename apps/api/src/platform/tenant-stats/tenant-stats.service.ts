@@ -1,6 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
+interface TenantOverviewRecord {
+  id: string;
+  name: string;
+  status: string;
+  subscriptionStatus: string;
+  subscriptionEndAt: Date | null;
+  createdAt: Date;
+}
+
+interface CountGroupRecord {
+  tenantId: string;
+  _count: { id: number };
+}
+
+interface SumGroupRecord {
+  tenantId: string;
+  _sum: { paidAmount?: unknown; balance?: unknown };
+}
+
 @Injectable()
 export class TenantStatsService {
   constructor(private prisma: PrismaService) {}
@@ -95,13 +114,20 @@ export class TenantStatsService {
       }),
     ]);
 
-    const woMap = new Map(workOrderCounts.map(w => [w.tenantId, w._count.id]));
-    const stMap = new Map(settlementAmounts.map(s => [s.tenantId, Number(s._sum.paidAmount || 0).toFixed(2)]));
-    const usMap = new Map(userCounts.map(u => [u.tenantId, u._count.id]));
-    const cuMap = new Map(customerCounts.map(c => [c.tenantId, c._count.id]));
-    const svMap = new Map(storedValueBalances.map(s => [s.tenantId, Number(s._sum.balance || 0).toFixed(2)]));
+    const tenantRows = tenants as TenantOverviewRecord[];
+    const workOrderRows = workOrderCounts as CountGroupRecord[];
+    const settlementRows = settlementAmounts as SumGroupRecord[];
+    const userRows = userCounts as CountGroupRecord[];
+    const customerRows = customerCounts as CountGroupRecord[];
+    const storedValueRows = storedValueBalances as SumGroupRecord[];
 
-    return tenants.map(t => ({
+    const woMap = new Map(workOrderRows.map((w) => [w.tenantId, w._count.id]));
+    const stMap = new Map(settlementRows.map((s) => [s.tenantId, Number(s._sum.paidAmount || 0).toFixed(2)]));
+    const usMap = new Map(userRows.map((u) => [u.tenantId, u._count.id]));
+    const cuMap = new Map(customerRows.map((c) => [c.tenantId, c._count.id]));
+    const svMap = new Map(storedValueRows.map((s) => [s.tenantId, Number(s._sum.balance || 0).toFixed(2)]));
+
+    return tenantRows.map((t) => ({
       tenantId: t.id,
       name: t.name,
       status: t.status,

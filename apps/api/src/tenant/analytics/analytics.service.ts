@@ -2,7 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
-import { Prisma } from '@prisma/client';
+import { empty, sqltag as sql } from '@prisma/client/runtime/library';
+
+interface WorkOrderStatusGroup {
+  status: string;
+  _count: { id: number };
+}
+
+interface WorkOrderTypeGroup {
+  orderType: string;
+  _count: { id: number };
+}
 
 @Injectable()
 export class AnalyticsService {
@@ -28,8 +38,8 @@ export class AnalyticsService {
     const result = await this.prisma.$queryRaw`
       SELECT
         ${dimension === 'day'
-          ? Prisma.sql`DATE(p.created_at)`
-          : Prisma.sql`DATE_TRUNC(${dimension}, p.created_at)`
+          ? sql`DATE(p.created_at)`
+          : sql`DATE_TRUNC(${dimension}, p.created_at)`
         } AS period,
         COALESCE(SUM(p.amount), 0) AS total_revenue,
         COUNT(DISTINCT s.id) AS order_count
@@ -38,7 +48,7 @@ export class AnalyticsService {
       WHERE p.tenant_id = ${tenantId}
         AND p.created_at >= ${start}
         AND p.created_at < ${end}
-        ${shopId ? Prisma.sql`AND s.shop_id = ${shopId}` : Prisma.empty}
+        ${shopId ? sql`AND s.shop_id = ${shopId}` : empty}
       GROUP BY period
       ORDER BY period ASC
     `;
@@ -91,17 +101,17 @@ export class AnalyticsService {
       WHERE tenant_id = ${tenantId}
         AND created_at >= ${start}
         AND created_at < ${end}
-        ${query.shopId ? Prisma.sql`AND shop_id = ${query.shopId}` : Prisma.empty}
+        ${query.shopId ? sql`AND shop_id = ${query.shopId}` : empty}
       GROUP BY period
       ORDER BY period ASC
     `;
 
     return {
-      statusDistribution: statusDistribution.map(s => ({
+      statusDistribution: (statusDistribution as WorkOrderStatusGroup[]).map((s) => ({
         status: s.status,
         count: s._count.id,
       })),
-      typeDistribution: typeDistribution.map(t => ({
+      typeDistribution: (typeDistribution as WorkOrderTypeGroup[]).map((t) => ({
         type: t.orderType,
         count: t._count.id,
       })),
@@ -235,7 +245,7 @@ export class AnalyticsService {
         AND woi.part_id IS NOT NULL
         AND wo.created_at >= ${start}
         AND wo.created_at < ${end}
-        ${query.shopId ? Prisma.sql`AND wo.shop_id = ${query.shopId}` : Prisma.empty}
+        ${query.shopId ? sql`AND wo.shop_id = ${query.shopId}` : empty}
       GROUP BY woi.part_id, p.name, p.code
       ORDER BY total_amount DESC
       LIMIT 10

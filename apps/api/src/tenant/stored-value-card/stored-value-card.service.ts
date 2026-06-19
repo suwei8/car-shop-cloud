@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
+import { Prisma } from '@prisma/client';
 import { tenantWhere, tenantCreate } from '../../common/utils/tenant-where';
 
 @Injectable()
@@ -50,7 +51,7 @@ export class StoredValueCardService {
     const gift = data.gift || 0;
     const totalBalance = data.amount + gift;
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const card = await tx.storedValueCard.create({
         data: tenantCreate(user, {
           cardNo: data.cardNo,
@@ -88,7 +89,7 @@ export class StoredValueCardService {
     const gift = data.gift || 0;
     const total = data.amount + gift;
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const updated = await tx.storedValueCard.update({
         where: { id: cardId },
         data: {
@@ -122,7 +123,7 @@ export class StoredValueCardService {
     if (card.status !== 'active') throw new ForbiddenException('卡片状态异常');
     if (Number(card.balance) < amount) throw new ForbiddenException('余额不足');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 先扣赠送余额，再扣本金
       let remaining = amount;
       let deductGift = 0;
@@ -171,7 +172,7 @@ export class StoredValueCardService {
       throw new ForbiddenException(`退款金额不能超过本金余额(${Number(card.principalBalance)})`);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const updated = await tx.storedValueCard.update({
         where: { id: cardId, tenantId: user.tenantId! },
         data: {

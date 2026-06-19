@@ -11,6 +11,7 @@
     "build:api": "pnpm --filter @car/api run build",
     "build:web": "pnpm --filter @car/web run build",
     "lint": "pnpm -r run lint",
+    "prisma:generate": "pnpm --filter @car/api run prisma:generate",
     "db:migrate": "pnpm --filter @car/api run prisma:migrate",
     "db:seed": "pnpm --filter @car/api run prisma:seed",
     "db:studio": "pnpm --filter @car/api run prisma:studio",
@@ -18,7 +19,9 @@
     "smoke:gray": "pnpm --filter @car/api run smoke:gray",
     "seed:gray": "pnpm --filter @car/api run seed:gray",
     "audit:login-phones": "pnpm --filter @car/api run audit:login-phones",
-    "audit:active-uniques": "pnpm --filter @car/api run audit:active-uniques"
+    "audit:active-uniques": "pnpm --filter @car/api run audit:active-uniques",
+    "check:gray-ready": "bash scripts/check-gray-ready.sh",
+    "smoke:gray:check": "SMOKE_COMPILE_ONLY=1 pnpm --filter @car/api run smoke:gray"
   },
   "engines": {
     "node": ">=18.0.0",
