@@ -39,6 +39,11 @@
 | TASK-H-029 | 派工 transaction 与任务状态类型收口 | P0 | ✅ 已关闭 | 为派工 create/start/complete transaction 和任务完成判断补齐类型，消除 dispatch build 阻塞 |
 | TASK-H-030 | 打印数据映射类型收口 | P0 | ✅ 已关闭 | 为工单/结算打印 items、inspections、payments 映射补齐类型，消除 print build 阻塞 |
 | TASK-H-031 | 提醒任务与列表映射类型收口 | P0 | ✅ 已关闭 | 为 reminder 任务生成和列表车辆映射补齐类型，消除 reminder build 阻塞 |
+| TASK-H-032 | 报表服务聚合与映射类型收口 | P0 | ✅ 已关闭 | 为日报、技师、库存、客户、储值和套餐报表补齐聚合/映射类型，消除 report build 阻塞 |
+| TASK-H-033 | 角色管理 transaction 类型收口 | P0 | ✅ 已关闭 | 为角色 create/update transaction 补齐 Prisma.TransactionClient，消除 role build 阻塞 |
+| TASK-H-034 | 库存服务 transaction 与出入库明细类型收口 | P0 | ✅ 已关闭 | 为库存余额、工单配件行、出入库明细和 transaction 补齐类型，消除 stock build 阻塞 |
+| TASK-H-035 | 储值卡 transaction 类型收口 | P0 | ✅ 已关闭 | 为售卡、充值、消费、退款 transaction 补齐 Prisma.TransactionClient，消除 stored-value-card build 阻塞 |
+| TASK-H-036 | 订阅套餐与订单类型收口 | P0 | ✅ 已关闭 | 为套餐展示、订单历史和支付回调 transaction 补齐类型，消除 subscription build 阻塞 |
 
 ## MiMo 派发约定
 

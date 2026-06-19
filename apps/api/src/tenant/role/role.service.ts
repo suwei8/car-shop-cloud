@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '@car/shared';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class RoleService {
@@ -24,7 +25,7 @@ export class RoleService {
   }
 
   async create(data: { name: string; code: string; description?: string; permissionIds: string[] }, user: JwtPayload) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const role = await tx.role.create({
         data: {
           tenantId: user.tenantId!,
@@ -48,7 +49,7 @@ export class RoleService {
     const role = await this.findOne(id, user);
     if (role.isBuiltIn) throw new ForbiddenException('内置角色不可编辑');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.role.update({
         where: { id, tenantId: user.tenantId! },
         data: { name: data.name, description: data.description },

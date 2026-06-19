@@ -4,6 +4,27 @@ import { Prisma } from '@prisma/client';
 import { JwtPayload } from '@car/shared';
 import { tenantWhere, tenantCreate } from '../../common/utils/tenant-where';
 
+interface StockBalanceWithPart {
+  quantity: unknown;
+  part: { minStock?: number | null };
+}
+
+interface WorkOrderPartItemRecord {
+  itemType: string;
+  partId?: string | null;
+  quantity: unknown;
+  unitPrice: unknown;
+  amount: unknown;
+}
+
+interface StockBillItemRecord {
+  id: string;
+  partId: string;
+  quantity: unknown;
+  unitPrice: unknown;
+  amount: unknown;
+}
+
 @Injectable()
 export class StockService {
   constructor(private prisma: PrismaService) {}
@@ -37,7 +58,7 @@ export class StockService {
     });
 
     if (lowStock) {
-      return balances.filter(b => Number(b.quantity) <= (b.part.minStock || 0));
+      return (balances as StockBalanceWithPart[]).filter((b: StockBalanceWithPart) => Number(b.quantity) <= (b.part.minStock || 0));
     }
 
     return balances;
@@ -53,7 +74,7 @@ export class StockService {
     });
     if (!warehouse) throw new NotFoundException('未找到默认仓库，请先创建仓库');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const billNo = await this.generateBillNo(user.tenantId!, 'IN', tx);
       const bill = await tx.stockBill.create({
         data: tenantCreate(user, {
@@ -113,7 +134,7 @@ export class StockService {
     if (!workOrder) throw new NotFoundException('工单不存在');
 
     // 筛选出配件类型的项目
-    const partItems = workOrder.items.filter(item => item.itemType === 'part');
+    const partItems = (workOrder.items as WorkOrderPartItemRecord[]).filter((item: WorkOrderPartItemRecord) => item.itemType === 'part');
     if (partItems.length === 0) return { message: '无配件需要出库' };
 
     const warehouse = await this.prisma.warehouse.findFirst({
@@ -121,7 +142,7 @@ export class StockService {
     });
     if (!warehouse) throw new NotFoundException('未找到默认仓库');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const billNo = await this.generateBillNo(user.tenantId!, 'OUT', tx);
       const bill = await tx.stockBill.create({
         data: {
@@ -134,7 +155,7 @@ export class StockService {
           operatorId: user.sub,
           status: 'confirmed',
           items: {
-            create: partItems.map(item => ({
+            create: partItems.map((item: WorkOrderPartItemRecord) => ({
               tenantId: user.tenantId!,
               partId: item.partId || '',
               quantity: Number(item.quantity),
@@ -204,7 +225,7 @@ export class StockService {
     });
     if (!workOrder) return;
 
-    const partItems = workOrder.items.filter(item => item.itemType === 'part' && item.partId);
+    const partItems = (workOrder.items as WorkOrderPartItemRecord[]).filter((item: WorkOrderPartItemRecord) => item.itemType === 'part' && item.partId);
     if (partItems.length === 0) return;
 
     const warehouse = await tx.warehouse.findFirst({
@@ -224,7 +245,7 @@ export class StockService {
         operatorId,
         status: 'confirmed',
         items: {
-          create: partItems.map(item => ({
+          create: partItems.map((item: WorkOrderPartItemRecord) => ({
             tenantId,
             partId: item.partId!,
             quantity: Number(item.quantity),
@@ -318,7 +339,7 @@ export class StockService {
         remark: `工单作废回滚（原出库单 ${outBill.billNo}）`,
         status: 'confirmed',
         items: {
-          create: outBill.items.map(item => ({
+          create: (outBill.items as StockBillItemRecord[]).map((item: StockBillItemRecord) => ({
             tenantId,
             partId: item.partId,
             quantity: Number(item.quantity),

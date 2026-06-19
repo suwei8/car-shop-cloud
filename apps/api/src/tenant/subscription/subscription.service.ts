@@ -3,6 +3,28 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
 import { PaymentGatewayService } from '../payment/payment-gateway.service';
 import { JwtPayload } from '@car/shared';
+import { Prisma } from '@prisma/client';
+
+type Decimalish = { toString(): string } | number | string;
+
+interface SubscriptionPlanListRecord {
+  id?: string;
+  name: string;
+  priceMonthly?: Decimalish | null;
+  priceYearly: Decimalish;
+  discount3m: Decimalish;
+  discount6m: Decimalish;
+  discount12m: Decimalish;
+  [key: string]: unknown;
+}
+
+interface SubscriptionHistoryRecord {
+  originalAmount: Decimalish;
+  discountRate: Decimalish;
+  amount: Decimalish;
+  plan: { priceYearly: Decimalish; [key: string]: unknown };
+  [key: string]: unknown;
+}
 
 @Injectable()
 export class SubscriptionService {
@@ -20,7 +42,7 @@ export class SubscriptionService {
       orderBy: { priceYearly: 'asc' },
     });
 
-    return plans.map((plan) => {
+    return (plans as SubscriptionPlanListRecord[]).map((plan: SubscriptionPlanListRecord) => {
       const monthlyPrice = plan.priceMonthly
         ? Number(plan.priceMonthly)
         : Number(plan.priceYearly) / 12;
@@ -246,7 +268,7 @@ export class SubscriptionService {
     ]);
 
     return {
-      items: items.map((item) => ({
+      items: (items as SubscriptionHistoryRecord[]).map((item: SubscriptionHistoryRecord) => ({
         ...item,
         originalAmount: item.originalAmount.toString(),
         discountRate: item.discountRate.toString(),
@@ -284,7 +306,7 @@ export class SubscriptionService {
       return;
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Update order status
       await tx.subscriptionOrder.update({
         where: { id: order.id },
